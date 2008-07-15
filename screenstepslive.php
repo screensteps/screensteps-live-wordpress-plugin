@@ -3,19 +3,21 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://URI_Of_Page_Describing_Plugin_and_Updates
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 0.5
+Version: 0.9.0
 Author: Trevor DeVore
 Author URI: http://www.screensteps.com
 */
 
+// Global var for SSLiveWordPress object. It is shared among multiple wp callbacks.
 $screenstepslivewp = NULL;
+
 
 // This plugin processes content of all posts
 add_filter('the_content', 'screenstepslive_parseContent', 100);
 add_filter('the_title', 'screenstepslive_parseTitle', 100);
+add_filter('wp_title', 'screenstepslive_parseTitle', 100);
 add_filter('delete_post', 'screenstepslive_checkIfDeletedPostIsReferenced', 100);
 add_action('admin_menu', 'screenstepslive_addPages');
-
 
 
 function screenstepslive_initializeObject()
@@ -204,65 +206,106 @@ function screenstepslive_optionPage()
 		}
 	}
 	
-	// UI
-	$xmlobject = $sslivewp->GetManuals(false);
-	if ($xmlobject) {
-		if (count($xmlobject) == 0) {
-			print "<div>No manuals found.</div>";
-		} else {
-			// Get stored settings
-			$manual_settings = unserialize(get_option('screenstepslive_manual_settings'));
+	// UI			
+echo <<<END
+<div class="wrap">
+	<h2>ScreenSteps Live</h2>
+	<br />
+	<fieldset class="options">
+		<legend>ScreenSteps Live API Information</legend>		
+END;
 			
 			// Print API info
+			$http_option = get_option('screenstepslive_protocol') == 'http' ? ' selected="selected"' : '';
+			$https_option = get_option('screenstepslive_protocol') == 'https' ? ' selected="selected"' : '';
+			
 			print ('<form method="post" action="' . GETENV('REQUEST_URI') . '">' . "\n");
 			print ('<input type="hidden" name="api_submitted" value="1">' . "\n");
-			print ('<table>');
-			print ('<tr><td>ScreenSteps Live Domain:</td><td>' . 
-					'<input type="text" name="domain" id="domain" value="'. get_option('screenstepslive_domain') . '"></td></tr>');
-			print ('<tr><td>ScreenSteps Live API Key:</td><td>' . 
+			print ('<table class="optiontable form-table">');
+			print ('<tr><th scope="row" style="width:200px;">ScreenSteps Live Domain:</th><td>' . 
+					'<input type="text" name="domain" id="domain" style="width:20em;" value="'. get_option('screenstepslive_domain') . '"></td></tr>');
+			print ('<tr><th scope="row">ScreenSteps Live API Key:</th><td>' . 
 					'<input type="text" name="api_key" id="api_key" value="'. get_option('screenstepslive_api_key') . '"></td></tr>');
-			print ('<tr><td>ScreenSteps Live Domain:</td><td>' . 
-					'<input type="text" name="protocol" id="protocol" value="'. get_option('screenstepslive_protocol') . '"></td></tr>');
+			print ('<tr><th scope="row">ScreenSteps Live Domain:</th><td>' . 
+					'<select name="protocol"><option value="http"'. $http_option . '">HTTP</option>' . 
+					'<option value="https"'. $https_option . '">HTTPS</option></select>' .
+					'</td></tr>');
 			print ('</table>');
-			print ('<button type="submit" id="submit_api_settings">Submit</button>' . "\n");
-			print ("</form>\n");
-			
-			print ("<p></p>\n");
+
+echo <<<END
+			<div class="submit">
+				<input type="submit" id="submit_api_settings" value="Save ScreenSteps Live API Settings" />
+			</div>
+		</form>
+	</fieldset>
+	
+	<br />
+	
+	<fieldset class="options">
+			<legend>WordPress Page Settings</legend>
+END;
 			
 			
 			// Print Page ID settings.
 			print ('<form method="post" action="' . GETENV('REQUEST_URI') . '">' . "\n");
 			print ('<input type="hidden" name="post_ids_submitted" value="1">' . "\n");
-			print ('<table>');
-			print ('<tr><td>Manuals Index Page ID:</td><td>' . 
-					'<input type="text" name="manuals_index_post_id" id="manuals_index_post_id" value="'. get_option('screenstepslive_manuals_index_post_id') . '">');
+			print ('<table class="optiontable form-table">');
+			print ('<tr><th scope="row" style="width:200px;">Manuals Index Page ID:</th><td width="30px">' . 
+					'<input type="text" name="manuals_index_post_id" id="manuals_index_post_id" value="'. get_option('screenstepslive_manuals_index_post_id') . '"></td>');
+			print ('<td>');
 			if (intval(get_option('screenstepslive_manuals_index_post_id')) < 1) {
-				print ('<a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_manual_index_page">Create Manual Index Page</a>');
+				print ('Enter page id or <a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_manual_index_page">Create Manual Index Page</a>');
 			}
+			print ('</td>');
 			print ('</td></tr>');
-			print ('<tr><td>Manual Page ID:</td><td>' . 
-					'<input type="text" name="manual_post_id" id="manual_post_id" value="'. get_option('screenstepslive_manual_post_id') . '">');
+			print ('<tr><th scope="row">Manual Page ID:</th><td width="30px">' . 
+					'<input type="text" name="manual_post_id" id="manual_post_id" value="'. get_option('screenstepslive_manual_post_id') . '"></td>');
+			print ('<td>');
 			if (intval(get_option('screenstepslive_manual_post_id')) < 1) {
-				print ('<a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_manual_page">Create Manual Page</a>');
+				print ('Enter page id or <a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_manual_page">Create Manual Page</a>');
 			}
+			print ('</td>');
 			print ('</td></tr>');
-			print ('<tr><td>Lesson Page ID:</td><td>' . 
-					'<input type="text" name="lesson_post_id" id="lesson_post_id" value="'. get_option('screenstepslive_lesson_post_id') . '">');
+			print ('<tr><th scope="row">Lesson Page ID:</th><td width="30px">' . 
+					'<input type="text" name="lesson_post_id" id="lesson_post_id" value="'. get_option('screenstepslive_lesson_post_id') . '"></td>');
+			print ('<td>');
 			if (intval(get_option('screenstepslive_lesson_post_id')) < 1) {
-				print ('<a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_lesson_page">Create Lesson Page</a>');
+				print ('Enter page id or <a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_lesson_page">Create Lesson Page</a>');
 			}
-			print ('</td></tr>');
+			print ('</td>');
+			print ('</tr>');
 			print ('</table>');
-			print ('<button type="submit" id="submit_post_id_settings">Submit</button>' . "\n");
-			print ("</form>\n");
 			
-			print ("<p></p>\n");
+echo <<<END
+			<div class="submit">
+				<input type="submit" id="submit_post_id_settings" value="Save WordPress Page Settings"/>
+			</div>
+		</form>
+	</fieldset>
+	<br />
+	<fieldset class="options">
+			<legend>ScreenSteps Live Manuals</legend>
+END;
 			
+			
+	$xmlobject = $sslivewp->GetManuals(false);
+	if ($xmlobject) {
+		if (count($xmlobject) == 0) {
+			print "<div>No manuals were returned from the ScreenSteps Live server.</div>";
+		} else {
+			// Get stored settings
+			$manual_settings = unserialize(get_option('screenstepslive_manual_settings'));
 			
 			// Print manual setings		
 			print ('<form method="post" action="' . GETENV('REQUEST_URI') . '">' . "\n");
 			print ('<input type="hidden" name="manuals_submitted" value="1">' . "\n");
-			print ("<table><tr><td>Active</td><td>Manual</td><td>Permissions</td></tr><tr>\n");
+			print ('<table class="optiontable form-table">' . "\n");
+			print ('<tr>' . "\n");
+			print ('<th scope="column" style="width:10px;">Active</th>' . "\n");
+			print ('<th scope="column">Manual</th>' . "\n");
+			print ('<th scope="column">Permissions</th>' . "\n");
+			print ('</tr>' . "\n");
+			
 			foreach ($xmlobject as $manual) {
 				// Determine initial state for visible checkbox and permission settings.
 				$manual_id = intval($manual->id); // arrays don't like object props as key refs
@@ -284,12 +327,23 @@ function screenstepslive_optionPage()
 				print ("</tr>\n");
 			}
 			print ("</table>\n");
-			print ('<button type="submit" id="submit_manual_settings">Submit</button>' . "\n");
-			print ("</form>\n");
+
+echo <<<END
+			<div class="submit">
+				<input type="submit" id="submit_manual_settings" value="Save ScreenSteps Live Manual Permissions"/>
+			</div>
+		</form>
+END;
+
 		}
 	} else {
-		print ("Error:" . $this->last_error);
+		print ("<div>Error:" . $this->last_error . "</div>\n");
 	}
+
+echo <<<END
+	</fieldset>
+	<br />
+END;
 }
 
 
