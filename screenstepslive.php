@@ -38,7 +38,7 @@ function screenstepslive_initializeObject()
 		$screenstepslivewp = new SSLiveWordPress(get_option('screenstepslive_domain'), 
 										get_option('screenstepslive_api_key'), 
 										get_option('screenstepslive_protocol'));
-		$screenstepslivewp->manual_settings = unserialize(get_option('screenstepslive_manual_settings'));
+		$screenstepslivewp->manual_settings = get_option('screenstepslive_manual_settings');
 		$screenstepslivewp->user_can_read_private = current_user_can('read_private_posts') == 1;
 		$screenstepslivewp->manuals_index_post_id = get_option('screenstepslive_manuals_index_post_id');
 		$screenstepslivewp->manual_post_id = get_option('screenstepslive_manual_post_id');
@@ -172,7 +172,7 @@ function screenstepslive_optionPage()
 			}
 		}
 		
-		update_option('screenstepslive_manual_settings', serialize($manual_settings));
+		update_option('screenstepslive_manual_settings', $manual_settings);
 	}
 	
 	// Create template pages
@@ -294,7 +294,7 @@ END;
 			print "<div>No manuals were returned from the ScreenSteps Live server.</div>";
 		} else {
 			// Get stored settings
-			$manual_settings = unserialize(get_option('screenstepslive_manual_settings'));
+			$manual_settings = get_option('screenstepslive_manual_settings');
 			
 			// Print manual setings		
 			print ('<form method="post" action="' . GETENV('REQUEST_URI') . '">' . "\n");
