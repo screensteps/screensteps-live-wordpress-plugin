@@ -11,32 +11,138 @@ class SSLiveWordPress extends SSLiveAPI {
 	public $unauthorized_msg = 'You are not authorized to view this manual.';
 	public $manual_settings = array();
 	public $user_can_read_private = 0;
+	public $manuals_index_post_id = 0;
+	public $manual_post_id = 0;
+	public $lesson_post_id = 0;
 
-	private $queryString = '';	
+	private $queryString = '';
+	private $xmlobjects = array();
 	
 	// Constructor
 	function __construct ($domain, $api_key, $protocol='http') {
 		if (intval($_GET['page_id']) > 0)
-			$this->queryString = '?page_id=' . intval($_GET['page_id']);
+			$this->queryString = '?page_id='; // . intval($_GET['page_id']);
+		else if (intval($_GET['post']) > 0)
+			$this->queryString = '?post='; // . intval($_GET['post']);
 		else
-			$this->queryString = '?p=' . intval($_GET['p']);
+			$this->queryString = '?p='; // . intval($_GET['p']);
+		
+		// Cache
+		$this->xmlobjects['manuals'] = NULL;
+		$this->xmlobjects['manual'] = NULL;
+		$this->xmlobjects['lesson'] = NULL;
 		
 		// Initialize parent
 		parent::__construct($domain, $api_key, $protocol);
 	}
 	
 	function __destruct() {
-	
+
 	}
 	
 	// PUBLIC
+	
+	public function GetLinkToManualIndex() {
+		return $this->queryString . $this->manuals_index_post_id;
+	}
+	
+	
+	public function GetLinkToManual($manual_id) {
+		return $this->queryString . $this->manual_post_id . '&manual_id=' . $manual_id;
+	}
+	
+	
+	public function GetManualTitle($manual_id) {
+		$title = '';
+		
+		$this->CacheManual($manual_id);
+		
+		if ($this->xmlobjects['manual']) {
+			$title = $this->xmlobjects['manual']->title;
+		}
+		
+		return $title;
+	}
+	
+	
+	public function GetLessonTitle($manual_id, $lesson_id) {
+		$title = '';
+		
+		$this->CacheLesson($manual_id, $lesson_id);
+		
+		if ($this->xmlobjects['lesson']) {
+			$title = $this->xmlobjects['lesson']->title;
+		}
+		
+		return $title;
+	}
+	
+	
+	public function GetLinkToPrevLesson($manual_id, $lesson_id, $text) {
+		$link = '';
+		
+		$this->CacheLesson($manual_id, $lesson_id);
+		
+		if ($this->xmlobjects['lesson']) {		
+			$prevLessonID = intval($this->xmlobjects['lesson']->manual->previous_lesson->id);
+			if ($prevLessonID > 0)
+				$link = '<a href="' . $this->queryString . $this->lesson_post_id . '&manual_id=' . $manual_id . '&lesson_id=' . $prevLessonID . '">' .
+							$text . '</a>';
+		}
+		return $link;
+	}
+	
+	
+	public function GetPrevLessonTitle($manual_id, $lesson_id) {
+		$title = '';
+		
+		$this->CacheLesson($manual_id, $lesson_id);
+		
+		if ($this->xmlobjects['lesson']) {
+			$prevLessonID = intval($this->xmlobjects['lesson']->manual->previous_lesson->id);
+			if ($prevLessonID > 0)
+				$title = $this->xmlobjects['lesson']->manual->previous_lesson->title;
+		}
+		return $title;
+	}
+	
+	
+	public function GetLinkToNextLesson($manual_id, $lesson_id, $text) {
+		$link = '';
+		
+		$this->CacheLesson($manual_id, $lesson_id);
+		
+		if ($this->xmlobjects['lesson']) {
+			$nextLessonID = intval($this->xmlobjects['lesson']->manual->next_lesson->id);
+			if ($nextLessonID > 0)
+				$link = '<a href="' . $this->queryString . $this->lesson_post_id . '&manual_id=' . $manual_id . '&lesson_id=' . $nextLessonID . '">' .
+							$text . '</a>';
+		}
+		return $link;
+	}
+	
+	
+	public function GetNextLessonTitle($manual_id, $lesson_id) {
+		$title = '';
+		
+		$this->CacheLesson($manual_id, $lesson_id);
+		
+		if ($this->xmlobjects['lesson']) {
+			$prevLessonID = intval($this->xmlobjects['lesson']->manual->next_lesson->id);
+			if ($prevLessonID > 0)
+				$title = $this->xmlobjects['lesson']->manual->next_lesson->title;
+		}
+		return $title;
+	}
+	
 	
 	public function GetManualsList() {
 		$text = '';
 		$manuals = array();
 		
-		// Fetch manuals
-		$xmlobject = parent::GetManuals();	
+		$this->CacheManuals();
+		$xmlobject =& $this->xmlobjects['manuals'];
+		
 		if ($xmlobject) {
 			$manuals = $this->FilterManuals($xmlobject);
 			
@@ -48,7 +154,7 @@ class SSLiveWordPress extends SSLiveAPI {
 					$manual_id = intval($manual->id);
 					if ($this->manual_settings[$manual_id] != '') {
 						if ($this->UserCanViewManual($this->manual_settings[$manual_id])) {
-							$text .= ('<li><a href="' . $this->queryString . '&manual_id=' . $manual->id . '">' . $manual->title . "</a></li>\n");
+							$text .= ('<li><a href="' . $this->queryString . $this->manual_post_id . '&manual_id=' . $manual->id . '">' . $manual->title . "</a></li>\n");
 						}
 					}
 				}
@@ -66,12 +172,11 @@ class SSLiveWordPress extends SSLiveAPI {
 		
 		// Validate that user can view this manual
 		if ($this->UserCanViewManual($this->manual_settings[$manual_id])) {
-			$xmlobject = parent::GetManual($manual_id);
+			$this->CacheManual($manual_id);
+			$xmlobject =& $this->xmlobjects['manual'];
 		
-			if ($xmlobject) {
-				$text .= '<div><a href="' . $this->queryString . '">Return to manuals</a></div>';
-				
-				$text .= ('<h2>'. $xmlobject->title . '</h2>');
+			if ($xmlobject) {				
+				//$text .= ('<h2>'. $xmlobject->title . '</h2>');
 		
 				if (count($xmlobject->sections->section) == 0) {
 					$text .= "<p>Manual has no sections.</p>";
@@ -81,14 +186,13 @@ class SSLiveWordPress extends SSLiveAPI {
 						
 						$text .= ("<ul>\n");
 						foreach ($section->lessons->lesson as $lesson) {
-							$text .= ('<li><a href="' . $this->queryString . '&manual_id=' . $manual_id . '&lesson_id=' . $lesson->id . '">' . 
+							$text .= ('<li><a href="' . $this->queryString . $this->lesson_post_id . '&manual_id=' . $manual_id . '&lesson_id=' . $lesson->id . '">' . 
 								$lesson->title . "</a></li>\n");
 						}
 						$text .= ("</ul>\n");
 					}
 				}
 				
-				$text .= '<div><a href="' . $this->queryString . '">Return to manuals</a></div>';
 			} else {
 				$text .= "Error:" . $this->last_error;
 			}
@@ -104,14 +208,13 @@ class SSLiveWordPress extends SSLiveAPI {
 		
 		// Validate that user can view this manual
 		if ($this->UserCanViewManual($this->manual_settings[$manual_id])) {
-			$text .= '<div><a href="' . $this->queryString . '&manual_id=' . $manual_id . '">Return to manual</a></div>';
-			
-			// Fetch manual
-			$xmlobject = parent::GetLesson($manual_id, $lesson_id);
+		
+			$this->CacheLesson($manual_id, $lesson_id);
+			$xmlobject =& $this->xmlobjects['lesson'];
 			
 			if ($xmlobject) {
 				
-				$text .= ('<h2>' . $xmlobject->title . "</h2>\n");
+				//$text .= ('<h2>' . $xmlobject->title . "</h2>\n");
 				$text .= ('<p>' . $xmlobject->description . "</p>\n");
 				
 				if (count($xmlobject->steps->step) == 0)
@@ -130,12 +233,29 @@ class SSLiveWordPress extends SSLiveAPI {
 				$text .= "Error:" . $this->last_error;
 			}
 			
-			$text .= '<div><a href="' . $this->queryString . '&manual_id=' . $manual_id . '">Return to manual</a></div>';
 		} else {
 			$text = $this->unauthorized_msg;
 		}
 		
 		return $text;
+	}
+	
+	
+	public function CacheManuals() {
+		if (!$this->xmlobjects['manuals'])
+			$this->xmlobjects['manuals'] = parent::GetManuals();
+	}
+	
+	
+	public function CacheManual($manual_id) {
+		if (!$this->xmlobjects['manual'])
+			$this->xmlobjects['manual'] = parent::GetManual($manual_id);
+	}
+	
+	
+	public function CacheLesson($manual_id, $lesson_id) {
+		if (!$this->xmlobjects['lesson'])
+			$this->xmlobjects['lesson'] = parent::GetLesson($manual_id, $lesson_id);
 	}
 	
 	// PRIVATE
@@ -156,7 +276,7 @@ class SSLiveWordPress extends SSLiveAPI {
 	}
 	
 	private function UserCanViewManual($permission_setting) {
-		return ($permission_setting == 'all' || ($permission_setting == 'public' && !$this->user_can_read_private) || ($permission_setting == 'private' && $this->user_can_read_private));
+		return ($permission_setting == 'everyone' || ($permission_setting == 'public' && !$this->user_can_read_private) || ($permission_setting == 'private' && $this->user_can_read_private));
 	}
 }
 
