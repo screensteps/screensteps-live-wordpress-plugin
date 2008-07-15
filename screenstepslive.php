@@ -13,7 +13,9 @@ $screenstepslivewp = NULL;
 // This plugin processes content of all posts
 add_filter('the_content', 'screenstepslive_parseContent', 100);
 add_filter('the_title', 'screenstepslive_parseTitle', 100);
+add_filter('delete_post', 'screenstepslive_checkIfDeletedPostIsReferenced', 100);
 add_action('admin_menu', 'screenstepslive_addPages');
+
 
 
 function screenstepslive_initializeObject()
@@ -118,6 +120,17 @@ function screenstepslive_parseContent($the_content)
     return $the_content;
 }
 
+
+function screenstepslive_checkIfDeletedPostIsReferenced($postID) {
+	if ($postID == get_option('screenstepslive_manuals_index_post_id'))
+		update_option('screenstepslive_manuals_index_post_id', '');
+	else if ($postID == get_option('screenstepslive_manual_post_id'))
+		update_option('screenstepslive_manual_post_id', '');
+	else if ($postID == get_option('screenstepslive_lesson_post_id'))
+		update_option('screenstepslive_lesson_post_id', '');
+}
+
+
 // Use to replace page title
 //$the_content = str_ireplace('{{SCREENSTEPSLIVE_LESSON_TITLE}}', $sslivewp->GetLessonTitle($manual_id, $lesson_id), $the_content);
 
@@ -160,6 +173,37 @@ function screenstepslive_optionPage()
 		update_option('screenstepslive_manual_settings', serialize($manual_settings));
 	}
 	
+	// Create template pages
+	if (isset($_GET['ssliveaction'])) {
+		switch ($_GET['ssliveaction']) {
+			case 'create_manual_index_page':
+				// Don't process resubmitted pages
+				if (intval(get_option('screenstepslive_manuals_index_post_id')) < 1) {
+					$postID = screenstepslive_createTemplatePage('manuals');
+					if (intval($postID) > 0) {
+						update_option('screenstepslive_manuals_index_post_id', $postID);
+					}
+				}
+				break;
+			case 'create_manual_page':
+				if (intval(get_option('screenstepslive_manual_post_id')) < 1) {
+					$postID = screenstepslive_createTemplatePage('manual');
+					if (intval($postID) > 0) {
+						update_option('screenstepslive_manual_post_id', $postID);
+					}
+				}
+				break;
+			case 'create_lesson_page':
+				if (intval(get_option('screenstepslive_lesson_post_id')) < 1) {
+					$postID = screenstepslive_createTemplatePage('lesson');
+					if (intval($postID) > 0) {
+						update_option('screenstepslive_lesson_post_id', $postID);
+					}
+				}
+				break;
+		}
+	}
+	
 	// UI
 	$xmlobject = $sslivewp->GetManuals(false);
 	if ($xmlobject) {
@@ -191,11 +235,23 @@ function screenstepslive_optionPage()
 			print ('<input type="hidden" name="post_ids_submitted" value="1">' . "\n");
 			print ('<table>');
 			print ('<tr><td>Manuals Index Page ID:</td><td>' . 
-					'<input type="text" name="manuals_index_post_id" id="manuals_index_post_id" value="'. get_option('screenstepslive_manuals_index_post_id') . '"></td></tr>');
+					'<input type="text" name="manuals_index_post_id" id="manuals_index_post_id" value="'. get_option('screenstepslive_manuals_index_post_id') . '">');
+			if (intval(get_option('screenstepslive_manuals_index_post_id')) < 1) {
+				print ('<a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_manual_index_page">Create Manual Index Page</a>');
+			}
+			print ('</td></tr>');
 			print ('<tr><td>Manual Page ID:</td><td>' . 
-					'<input type="text" name="manual_post_id" id="manual_post_id" value="'. get_option('screenstepslive_manual_post_id') . '"></td></tr>');
+					'<input type="text" name="manual_post_id" id="manual_post_id" value="'. get_option('screenstepslive_manual_post_id') . '">');
+			if (intval(get_option('screenstepslive_manual_post_id')) < 1) {
+				print ('<a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_manual_page">Create Manual Page</a>');
+			}
+			print ('</td></tr>');
 			print ('<tr><td>Lesson Page ID:</td><td>' . 
-					'<input type="text" name="lesson_post_id" id="lesson_post_id" value="'. get_option('screenstepslive_lesson_post_id') . '"></td></tr>');
+					'<input type="text" name="lesson_post_id" id="lesson_post_id" value="'. get_option('screenstepslive_lesson_post_id') . '">');
+			if (intval(get_option('screenstepslive_lesson_post_id')) < 1) {
+				print ('<a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_lesson_page">Create Lesson Page</a>');
+			}
+			print ('</td></tr>');
 			print ('</table>');
 			print ('<button type="submit" id="submit_post_id_settings">Submit</button>' . "\n");
 			print ("</form>\n");
@@ -235,6 +291,52 @@ function screenstepslive_optionPage()
 		print ("Error:" . $this->last_error);
 	}
 }
+
+
+function screenstepslive_createTemplatePage($type) {
+		if (!current_user_can( 'edit_others_pages' )) {
+			return new WP_Error( 'edit_others_pages', __( 'You are not allowed to create pages as this user.' ) );
+		}
+	
+		$user = wp_get_current_user();
+	
+		$post['post_author'] = $user->id;
+		$post['post_type'] = 'page';
+		$post['post_status'] = 'draft';
+		$post['comment_status'] = 'closed';
+		$post['ping_status'] = 'closed';
+		
+		switch($type) {
+			case 'manuals':
+				$post['post_title'] = 'Manuals';
+				$post['post_content'] = '{{SCREENSTEPSLIVE_CONTENT}}';
+				break;
+				
+			case 'manual':
+				$post['post_title'] = '{{SCREENSTEPSLIVE_MANUAL_TITLE}}';
+				$post['post_content'] = '{{SCREENSTEPSLIVE_CONTENT}}' . "\n" .
+										'<a href="{{SCREENSTEPSLIVE_LINK_TO_MANUALS_INDEX}}">Return to index</a>';
+				break;
+				
+			case 'lesson':
+				$post['post_title'] = '{{SCREENSTEPSLIVE_LESSON_TITLE}}';
+				$post['post_content'] = '{{SCREENSTEPSLIVE_CONTENT}}' . "\n" .
+										'{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text="Previous Lesson: {{SCREENSTEPSLIVE_PREV_LESSON_TITLE}}"}}' . "\n" .
+										'{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text="Next Lesson: {{SCREENSTEPSLIVE_NEXT_LESSON_TITLE}}"}}' . "\n" .
+										'<a href="{{SCREENSTEPSLIVE_LINK_TO_MANUAL}}">Return to Manual</a>';
+				break;
+		}
+		
+		$postID = wp_insert_post($post);
+		
+		if (is_wp_error($postID))
+			return $post_ID;
+	
+		if (empty($postID))
+			return 0;
+			
+		return $postID;
+	}
 
 //echo <<<END
 			
