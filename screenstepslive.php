@@ -38,6 +38,7 @@ function screenstepslive_initializeObject()
 		$screenstepslivewp = new SSLiveWordPress(get_option('screenstepslive_domain'), 
 										get_option('screenstepslive_api_key'), 
 										get_option('screenstepslive_protocol'));
+		$screenstepslivewp->show_protected = true;
 		$screenstepslivewp->manual_settings = get_option('screenstepslive_manual_settings');
 		$screenstepslivewp->user_can_read_private = current_user_can('read_private_posts') == 1;
 		$screenstepslivewp->manuals_index_post_id = get_option('screenstepslive_manuals_index_post_id');
