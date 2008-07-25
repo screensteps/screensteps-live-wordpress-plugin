@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://URI_Of_Page_Describing_Plugin_and_Updates
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 0.9.0
+Version: 0.9.1
 Author: Trevor DeVore
 Author URI: http://www.screensteps.com
 */
@@ -57,14 +57,14 @@ function screenstepslive_parseTitle($the_title) {
 				
 		$manual_id = intval($_GET['manual_id']);
 		if ($manual_id > 0)
-			$the_title = str_ireplace('{{SCREENSTEPSLIVE_MANUAL_TITLE}}', $sslivewp->GetManualTitle($manual_id), $the_title);
+			$the_title = preg_replace('/{{SCREENSTEPSLIVE_MANUAL_TITLE}}/i', $sslivewp->GetManualTitle($manual_id), $the_title);
 		
 	} else if (strpos($the_title, '{{SCREENSTEPSLIVE_LESSON_TITLE}}') !== FALSE ) {
 		$sslivewp = screenstepslive_initializeObject();
 		$manual_id = intval($_GET['manual_id']);
 		$lesson_id = intval($_GET['lesson_id']);
 		if ($manual_id > 0 && $lesson_id > 0)
-			$the_title = str_ireplace('{{SCREENSTEPSLIVE_LESSON_TITLE}}', $sslivewp->GetLessonTitle($manual_id, $lesson_id), $the_title);
+			$the_title = preg_replace('/{{SCREENSTEPSLIVE_LESSON_TITLE}}/i', $sslivewp->GetLessonTitle($manual_id, $lesson_id), $the_title);
 	}
 	
 	return ($the_title);
@@ -74,7 +74,7 @@ function screenstepslive_parseTitle($the_title) {
 // Called by WordPress to process content
 function screenstepslive_parseContent($the_content)
 {	
-	if (strpos($the_content, '{{SCREENSTEPSLIVE_CONTENT}}') !== FALSE ) {
+	if (stristr($the_content, '{{SCREENSTEPSLIVE_CONTENT}}') !== FALSE) {
 		$text = '';
 		
 		$manual_id = intval($_GET['manual_id']);
@@ -90,35 +90,35 @@ function screenstepslive_parseContent($the_content)
 		} else if ($manual_id > 0 && $lesson_id == 0) {
 			$text = $sslivewp->GetManualList($manual_id);
 			
-			$the_content = str_ireplace('{{SCREENSTEPSLIVE_LINK_TO_MANUALS_INDEX}}', $sslivewp->GetLinkToManualIndex(), $the_content);
-			$the_content = str_ireplace('{{SCREENSTEPSLIVE_MANUAL_TITLE}}', $sslivewp->GetManualTitle($manual_id), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_MANUALS_INDEX}}/i', $sslivewp->GetLinkToManualIndex(), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_MANUAL_TITLE}}/i', $sslivewp->GetManualTitle($manual_id), $the_content);
 		
 		}  else if ($manual_id > 0 && $lesson_id > 0) {
 			$text = $sslivewp->GetLessonHTML($manual_id, $lesson_id);
 			
-			$the_content = str_ireplace('{{SCREENSTEPSLIVE_LINK_TO_MANUALS_INDEX}}', $sslivewp->GetLinkToManualIndex(), $the_content);
-			$the_content = str_ireplace('{{SCREENSTEPSLIVE_LINK_TO_MANUAL}}', $sslivewp->GetLinkToManual($manual_id), $the_content);
-			$the_content = str_ireplace('{{SCREENSTEPSLIVE_MANUAL_TITLE}}', $sslivewp->GetManualTitle($manual_id), $the_content);
-			$the_content = str_ireplace('{{SCREENSTEPSLIVE_PREV_LESSON_TITLE}}', $sslivewp->GetPrevLessonTitle($manual_id, $lesson_id), $the_content);
-			$the_content = str_ireplace('{{SCREENSTEPSLIVE_NEXT_LESSON_TITLE}}', $sslivewp->GetNextLessonTitle($manual_id, $lesson_id), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_MANUALS_INDEX}}/i', $sslivewp->GetLinkToManualIndex(), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_MANUAL}}/i', $sslivewp->GetLinkToManual($manual_id), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_MANUAL_TITLE}}/i', $sslivewp->GetManualTitle($manual_id), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_PREV_LESSON_TITLE}}/i', $sslivewp->GetPrevLessonTitle($manual_id, $lesson_id), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_NEXT_LESSON_TITLE}}/i', $sslivewp->GetNextLessonTitle($manual_id, $lesson_id), $the_content);
 			
 			// Prev lesson link
-			$result = preg_match('/{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text=&#8221;(.*?)&#8221;}}/', $the_content, $matches);
+			$result = preg_match('/{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text=&#8221;(.*?)&#8221;}}/i', $the_content, $matches);
 			if ($result) {
-				$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text=&#8221;(.*?)&#8221;}}/', 
+				$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text=&#8221;(.*?)&#8221;}}/i', 
 								$sslivewp->GetLinkToPrevLesson($manual_id, $lesson_id, $matches[1]), $the_content);
 			}
 			
 			// Next lesson link
-			$result = preg_match('/{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text=&#8221;(.*?)&#8221;}}/', $the_content, $matches);
+			$result = preg_match('/{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text=&#8221;(.*?)&#8221;}}/i', $the_content, $matches);
 			if ($result) {
-				$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text=&#8221;(.*?)&#8221;}}/', 
+				$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text=&#8221;(.*?)&#8221;}}/i', 
 								$sslivewp->GetLinkToNextLesson($manual_id, $lesson_id, $matches[1]), $the_content);
 			}
 		}
 	}
 	
-	if ($text != '') $the_content = str_ireplace('{{SCREENSTEPSLIVE_CONTENT}}', $text, $the_content);
+	if ($text != '') $the_content = preg_replace('/{{SCREENSTEPSLIVE_CONTENT}}/i', $text, $the_content);
 	
     return $the_content;
 }
@@ -135,7 +135,7 @@ function screenstepslive_checkIfDeletedPostIsReferenced($postID) {
 
 
 // Use to replace page title
-//$the_content = str_ireplace('{{SCREENSTEPSLIVE_LESSON_TITLE}}', $sslivewp->GetLessonTitle($manual_id, $lesson_id), $the_content);
+//$the_content = preg_replace('/{{SCREENSTEPSLIVE_LESSON_TITLE}}/i', $sslivewp->GetLessonTitle($manual_id, $lesson_id), $the_content);
 
 // Add admin page
 function screenstepslive_addPages()
@@ -289,9 +289,9 @@ echo <<<END
 END;
 			
 			
-	$xmlobject = $sslivewp->GetManuals(false);
-	if ($xmlobject) {
-		if (count($xmlobject) == 0) {
+	$array = $sslivewp->GetManuals(false);
+	if ($array) {
+		if (count($array['manual']) == 0) {
 			print "<div>No manuals were returned from the ScreenSteps Live server.</div>";
 		} else {
 			// Get stored settings
@@ -307,12 +307,13 @@ END;
 			print ('<th scope="column">Permissions</th>' . "\n");
 			print ('</tr>' . "\n");
 			
-			foreach ($xmlobject as $manual) {
+			foreach ($array['manual'] as $key => $manual) {
 				// Determine initial state for visible checkbox and permission settings.
-				$manual_id = intval($manual->id); // arrays don't like object props as key refs
+				$manual_id = intval($manual['id']); // arrays don't like object props as key refs
 				$checked = ($manual_settings[$manual_id] != '') ? ' checked' : '';
 				$private_option = '';
 				$public_option = '';
+				$everyone_option = '';
 				if ($checked == ' checked') {
 					$private_option = $manual_settings[$manual_id] == 'private' ? ' selected="selected"' : '';
 					$public_option = $manual_settings[$manual_id] == 'public' ? ' selected="selected"' : '';
@@ -320,9 +321,9 @@ END;
 				}
 				
 				print ("<tr>\n");
-				print ('<td><input type="checkbox" name="manual_visible[' . $manual->id . ']"' . $checked . '></td>' . "\n");
-				print ('<td>' . $manual->title . "</td>\n");
-				print ('<td><select name="manual_permission[' . $manual->id . ']"><option value="private"' . $private_option . 
+				print ('<td><input type="checkbox" name="manual_visible[' . $manual_id . ']"' . $checked . '></td>' . "\n");
+				print ('<td>' . $manual['title'] . "</td>\n");
+				print ('<td><select name="manual_permission[' . $manual_id . ']"><option value="private"' . $private_option . 
 						'>Private</option><option value="public"' . $public_option . '>Public</option>' . 
 						'<option value="everyone"' . $everyone_option . '>Everyone</option></select></td>' . "\n");
 				print ("</tr>\n");

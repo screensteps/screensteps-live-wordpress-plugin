@@ -1,6 +1,6 @@
 <?php
 
-// Version 0.5.0.1
+// Version 0.6.0.1
 
 // You need to get this from PEAR
 // http://pear.php.net/package/Crypt_HMAC
@@ -12,11 +12,25 @@ require_once('HMAC.php');
 
 
 class SSLiveAPI {
-	public $domain = '';
-	public $api_key = '';
-	public $last_error = '';
-	public $protocol = 'http';
-	public $show_protected = false;
+	// PUBLIC
+	var $domain = '';
+	var $api_key = '';
+	var $last_error = '';
+	var $protocol = 'http';
+	var $show_protected = false;
+	var $use_simplexml = false;
+	
+	// PRIVATE
+	var $xml_depth = 0;
+	var $xml_node_arrays = NULL;
+	var $xml_current_tag = NULL;
+	var $last_depth_closed = 0;
+	var $xml_doc_type = '';
+	
+	// PHP 4
+	function SSLiveAPI($domain, $api_key, $protocol='http') {
+		$this->__construct($domain, $api_key, $protocol);
+	}
 	
 	function __construct($domain, $api_key, $protocol='http') {
 		$this->domain = $domain;
@@ -30,56 +44,69 @@ class SSLiveAPI {
 	
 	// PUBLIC
 	
-	public function GetManuals() {
+	function GetManuals() {
 		// Example URL: http://example.screensteps.com/api/manuals
 		$data = '';
 
 		$this->last_error = $this->requestURLData($this->getCompleteURL('/api/manuals/'), $data);
-		if ($this->last_error == '')
-			return simplexml_load_string($data);
-		else
+		if ($this->last_error == '') {
+			if ($this->use_simplexml)
+				return simplexml_load_string($data);
+			else
+				return $this->XMLToArray($data, 'manuals');
+		} else {
 			return NULL;
+		}
 	}
 	
-	public function GetManual($manual_id) {
+	function GetManual($manual_id) {
 		// Example URL: http://example.screensteps.com/api/manuals/46
 		$data = '';
 		
 		$manual_id = intval($manual_id);
 		$this->last_error = $this->requestURLData($this->getCompleteURL('/api/manuals/'. $manual_id), $data);
-		if ($this->last_error == '')
-			return simplexml_load_string($data);
-		else
+		if ($this->last_error == '') {
+			if ($this->use_simplexml)
+				return simplexml_load_string($data);
+			else
+				return $this->XMLToArray($data, 'manual');
+		} else {
 			return NULL;
+		}
 	}
 	
-	public function GetLesson($manual_id, $lesson_id) {
+	function GetLesson($manual_id, $lesson_id) {
 		// Example URL: http://example.screensteps.com/api/manuals/46/lessons/169
 		$data = '';
 		
 		$manual_id = intval($manual_id);
 		$lesson_id = intval($lesson_id);
 		$this->last_error = $this->requestURLData($this->getCompleteURL('/api/manuals/'. $manual_id . '/lessons/' . $lesson_id), $data);
-		if ($this->last_error == '')
-			return simplexml_load_string($data);
-		else
+		if ($this->last_error == '') {
+			if ($this->use_simplexml)
+				return simplexml_load_string($data);
+			else
+				return $this->XMLToArray($data, 'lesson');
+		} else {
 			return NULL;
+		}
 	}
+	
 	
 	// PRIVATE
 	
-	private function getCompleteURL($request) {
+	function getCompleteURL($request) {
 		$url = $this->protocol . '://' . $this->domain . $request;
 		if ($this->show_protected) $url .= '?show_protected=true';
 		return $url;
 	}
 	
-	private function requestURLData($url, &$data) {
+	function requestURLData($url, &$data) {
 		$parsed_url = parse_url($url);
 		$path_query = $parsed_url['path'];
 		if ($this->show_protected) $path_query .= '?show_protected=true';
 		$httpDate = gmdate("D, d M Y H:i:s T");
-	
+
 		$curl = curl_init();
 		curl_setopt($curl, CURLOPT_URL, $url);
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
@@ -103,12 +130,131 @@ class SSLiveAPI {
 		return $error;
 	}
 
-	private function encode($data) {
+	function encode($data) {
 		$hasher =& new Crypt_HMAC($this->api_key, "sha1");
 		$digest = $hasher->hash($data);
 		// hash_mac isn't installed on two systems I tried so we use PEAR library
 		// $digest = hash_mac("sha1", $data, $this->api_key, true);
 		return base64_encode(pack('H*', $digest));
+	}
+	
+	
+	// No SimpleXML in PHP 4...
+	function XMLToArray($data, $type) {
+		//print ($data);
+		
+		// Create an configure
+		$parser = xml_parser_create('UTF-8');
+
+		xml_parser_set_option($parser, XML_OPTION_SKIP_WHITE, 1); 
+		xml_parser_set_option($parser, XML_OPTION_CASE_FOLDING, 0); 
+		xml_set_object($parser, $this);
+		
+		// Register callbacks
+		xml_set_element_handler($parser, 'tag_open', 'tag_close');
+		xml_set_character_data_handler($parser, 'character_data');
+		
+		// Initialize variables
+		$this->xml_node_arrays = array();
+		$this->xml_current_tag = array();
+		$this->xml_depth = -1;
+		$this->last_depth_closed = -1;
+		$this->xml_doc_type = $type;
+		
+		// Parse XML
+		xml_parse($parser, $data, TRUE);
+		xml_parser_free($parser);
+		
+		// Now point array that is returned at the proper dimension of the array.
+		switch ($type) {
+			case 'manuals':
+				$array = $this->xml_node_arrays[0]['manuals'];
+				break;
+			case 'manual':
+				$array = $this->xml_node_arrays[0]['manual'];
+				break;
+			case 'lesson':
+				$array = $this->xml_node_arrays[0]['lesson'];
+				break;
+		}
+		
+		// cleanup
+		$this->xml_node_arrays = NULL;
+		$this->xml_current_tag = NULL;
+		$this->xml_doc_type = '';
+		
+		//print_r($array);
+		return $array;
+	}
+	
+	function tag_open($parser, $tagName, $attributes) 
+	{
+		$this->xml_depth++;
+		$this->xml_current_tag[$this->xml_depth] = $tagName;
+	}
+	
+	function tag_close($parser, $tagName)
+	{
+		if ($this->last_depth_closed >= 0 && $this->xml_depth < $this->last_depth_closed) {
+			// Closing level. Store array.
+			$parentTagName = $this->xml_current_tag[$this->xml_depth];
+			$storeAsArrayIndex = TRUE;
+			
+			// Determine which nodes are stored as indexes and which are stored as simple keyed arrays.
+			switch ($this->xml_doc_type) {
+				case 'manuals':
+					switch ($parentTagName) {
+						case 'manuals':
+							$storeAsArrayIndex = FALSE;
+							break;
+					}
+					break;
+				
+				case 'manual':
+					switch ($parentTagName) {
+						case 'manual':
+						case 'sections':
+						case 'lessons':
+							$storeAsArrayIndex = FALSE;
+							break;
+					}
+					break;
+				
+				case 'lesson':
+					switch ($parentTagName) {
+						case 'lesson':
+						case 'manual':
+						case 'steps':
+						case 'next_lesson':
+						case 'previous_lesson':
+							$storeAsArrayIndex = FALSE;
+							break;
+					}
+					break;
+			}
+			
+			// Store array one level up in parent
+			if ($storeAsArrayIndex === TRUE)
+				$this->xml_node_arrays[$this->xml_depth][$parentTagName][] = $this->xml_node_arrays[$this->xml_depth + 1];
+			else
+				$this->xml_node_arrays[$this->xml_depth][$parentTagName] = $this->xml_node_arrays[$this->xml_depth + 1];
+			
+			// Reset array for previous level
+			$this->xml_node_arrays[$this->xml_depth + 1] = array();
+		}
+		
+		$this->last_depth_closed = $this->xml_depth;
+		
+		$this->xml_current_tag[$this->xml_depth] = '';
+		$this->xml_depth--;
+	}
+	
+	// Stores text of current node
+	function character_data($parser, $string) {
+		if (trim($string) != '') {
+			$tagName = $this->xml_current_tag[$this->xml_depth];
+			$this->xml_node_arrays[$this->xml_depth][$tagName] .= $string;
+		}
 	}
 }
 
