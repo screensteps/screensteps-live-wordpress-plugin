@@ -276,7 +276,7 @@ class SSLiveWordPress extends SSLiveAPI {
 	function GetLinkToWordPressPage($page_id, $prepareForQuery=true) {
 		$link = get_permalink($page_id);
 		if ($prepareForQuery) {
-			$urlParts = parse_url($this->queryString);
+			$urlParts = parse_url($link);
 			if ($urlParts['query'] == '')
 				$link .= '?';
 			else

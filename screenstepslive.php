@@ -79,7 +79,7 @@ function screenstepslive_parseContent($the_content)
 		
 		$manual_id = intval($_GET['manual_id']);
 		$lesson_id = intval($_GET['lesson_id']);
-		
+				
 		// Include necessary SS Live files
 		$sslivewp = screenstepslive_initializeObject();
 		
@@ -103,16 +103,16 @@ function screenstepslive_parseContent($the_content)
 			$the_content = preg_replace('/{{SCREENSTEPSLIVE_NEXT_LESSON_TITLE}}/i', $sslivewp->GetNextLessonTitle($manual_id, $lesson_id), $the_content);
 			
 			// Prev lesson link
-			$result = preg_match('/{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text=&#8221;(.*?)&#8221;}}/i', $the_content, $matches);
+			$result = preg_match('/{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text=(?:&#8221;|&quot;)(.*?)(?:&#8221;|&quot;)}}/i', $the_content, $matches);
 			if ($result) {
-				$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text=&#8221;(.*?)&#8221;}}/i', 
+				$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text=(?:&#8221;|&quot;)(.*?)(?:&#8221;|&quot;)}}/i', 
 								$sslivewp->GetLinkToPrevLesson($manual_id, $lesson_id, $matches[1]), $the_content);
 			}
 			
 			// Next lesson link
-			$result = preg_match('/{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text=&#8221;(.*?)&#8221;}}/i', $the_content, $matches);
+			$result = preg_match('/{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text=(?:&#8221;|&quot;)(.*?)(?:&#8221;|&quot;)}}/i', $the_content, $matches);
 			if ($result) {
-				$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text=&#8221;(.*?)&#8221;}}/i', 
+				$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text=(?:&#8221;|&quot;)(.*?)(?:&#8221;|&quot;)}}/i', 
 								$sslivewp->GetLinkToNextLesson($manual_id, $lesson_id, $matches[1]), $the_content);
 			}
 		}
