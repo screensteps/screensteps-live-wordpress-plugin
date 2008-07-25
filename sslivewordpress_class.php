@@ -29,12 +29,24 @@ class SSLiveWordPress extends SSLiveAPI {
 	
 	// Constructor
 	function __construct ($domain, $api_key, $protocol='http') {
-		if (intval($_GET['page_id']) > 0)
+		global $post;
+		
+		$this->queryString = get_permalink($post->ID, true);
+		
+		$url = parse_url($this->queryString);
+		
+		if ($url['query'] == '') 
+			$this->queryString .= '?';
+		else
+			$this->queryString .= '&';
+			
+		/*if (intval($_GET['page_id']) > 0)
 			$this->queryString = '?page_id=';
 		else if (intval($_GET['post']) > 0)
 			$this->queryString = '?post=';
 		else
 			$this->queryString = '?p=';
+		*/
 		
 		// Cache
 		$this->arrays['manuals'] = NULL;
