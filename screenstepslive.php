@@ -146,17 +146,12 @@ function screenstepslive_addPages()
 
 // Shows Admin page
 function screenstepslive_optionPage()
-{	
+{
+	$sslivewp = screenstepslive_initializeObject();
+	
 	// API form was submitted
 	if ($_POST['api_submitted'] == 1) {
-		// strip http:// or https:// from domain
-		$domain = $_POST['domain'];
-		if (strncasecmp($domain, 'http://', 7) == 0)
-			$domain = substr($domain, 7, strlen($domain));
-		else if (strncasecmp($domain, 'https://', 8) == 0)
-			$domain = substr($domain, 8, strlen($domain));
-		
-		update_option('screenstepslive_domain', $domain);
+		update_option('screenstepslive_domain', $_POST['domain']);
 		update_option('screenstepslive_api_key', $_POST['api_key']);
 		update_option('screenstepslive_protocol', $_POST['protocol']);
 	}
@@ -180,9 +175,6 @@ function screenstepslive_optionPage()
 		
 		update_option('screenstepslive_manual_settings', $manual_settings);
 	}
-	
-	// Initialize after update
-	$sslivewp = screenstepslive_initializeObject();
 	
 	// Create template pages
 	if (isset($_GET['ssliveaction'])) {

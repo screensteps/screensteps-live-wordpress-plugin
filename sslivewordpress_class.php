@@ -1,6 +1,6 @@
 <?php
 
-// Version 0.9.1.1
+// Version 0.9.2.1
 
 // Include ScreenSteps Live class file
 require_once('sslive_class.php');
@@ -28,26 +28,7 @@ class SSLiveWordPress extends SSLiveAPI {
 	}
 	
 	// Constructor
-	function __construct ($domain, $api_key, $protocol='http') {
-		global $post;
-		
-		$this->queryString = get_permalink($post->ID, true);
-		
-		$url = parse_url($this->queryString);
-		
-		if ($url['query'] == '') 
-			$this->queryString .= '?';
-		else
-			$this->queryString .= '&';
-			
-		/*if (intval($_GET['page_id']) > 0)
-			$this->queryString = '?page_id=';
-		else if (intval($_GET['post']) > 0)
-			$this->queryString = '?post=';
-		else
-			$this->queryString = '?p=';
-		*/
-		
+	function __construct ($domain, $api_key, $protocol='http') {		
 		// Cache
 		$this->arrays['manuals'] = NULL;
 		$this->arrays['manual'] = NULL;
@@ -64,12 +45,13 @@ class SSLiveWordPress extends SSLiveAPI {
 	// PUBLIC
 	
 	function GetLinkToManualIndex() {
-		return $this->queryString . $this->manuals_index_post_id;
+		return $this->GetLinkToWordPressPage($this->manuals_index_post_id, false);
 	}
 	
 	
 	function GetLinkToManual($manual_id) {
-		return $this->queryString . $this->manual_post_id . '&manual_id=' . $manual_id;
+		$link_to_manual = $this->GetLinkToWordPressPage($this->manual_post_id);
+		return $link_to_manual . 'manual_id=' . $manual_id;
 	}
 	
 	
@@ -106,9 +88,11 @@ class SSLiveWordPress extends SSLiveAPI {
 		
 		if ($this->arrays['lesson']) {		
 			$prevLessonID = intval($this->arrays['lesson']['manual']['previous_lesson']['id']);
-			if ($prevLessonID > 0)
-				$link = '<a href="' . $this->queryString . $this->lesson_post_id . '&manual_id=' . $manual_id . '&lesson_id=' . $prevLessonID . '">' .
+			if ($prevLessonID > 0) {
+				$link_to_lesson = $this->GetLinkToWordPressPage($this->lesson_post_id);
+				$link = '<a href="' . $link_to_lesson . 'manual_id=' . $manual_id . '&lesson_id=' . $prevLessonID . '">' .
 							$text . '</a>';
+			}
 		}
 		return $link;
 	}
@@ -135,9 +119,11 @@ class SSLiveWordPress extends SSLiveAPI {
 		
 		if ($this->arrays['lesson']) {
 			$nextLessonID = intval($this->arrays['lesson']['manual']['next_lesson']['id']);
-			if ($nextLessonID > 0)
-				$link = '<a href="' . $this->queryString . $this->lesson_post_id . '&manual_id=' . $manual_id . '&lesson_id=' . $nextLessonID . '">' .
+			if ($nextLessonID > 0) {
+				$link_to_lesson = $this->GetLinkToWordPressPage($this->lesson_post_id);
+				$link = '<a href="' . $link_to_lesson . 'manual_id=' . $manual_id . '&lesson_id=' . $nextLessonID . '">' .
 							$text . '</a>';
+			}
 		}
 		return $link;
 	}
@@ -168,13 +154,15 @@ class SSLiveWordPress extends SSLiveAPI {
 			
 			if (count($manuals) == 0) {
 				$text .= "<p>No manuals found.</p>";
-			} else {			
+			} else {
+				$link_to_manual = $this->GetLinkToWordPressPage($this->manual_post_id);
+				
 				print ("<ul>\n");
 				foreach ($manuals as $key => $manual) {
 					$manual_id = intval($manual['id']);
 					if ($this->manual_settings[$manual_id] != '') {
 						if ($this->UserCanViewManual($this->manual_settings[$manual_id])) {
-							$text .= ('<li><a href="' . $this->queryString . $this->manual_post_id . '&manual_id=' . $manual_id . '">' . $manual['title'] . "</a></li>\n");
+							$text .= ('<li><a href="' . $link_to_manual . 'manual_id=' . $manual_id . '">' . $manual['title'] . "</a></li>\n");
 						}
 					}
 				}
@@ -196,20 +184,23 @@ class SSLiveWordPress extends SSLiveAPI {
 			$array =& $this->arrays['manual'];
 		
 			if ($array) {
-		
 				if (count($array['sections']['section']) == 0) {
 					$text .= "<p>Manual has no sections.</p>";
 				} else {
+					$link_to_lesson = $this->GetLinkToWordPressPage($this->lesson_post_id);
+					
 					foreach ($array['sections']['section'] as $key => $section) {
 						$text .= ('<h3>' . $section['title'] . '</h3>');
 						
-						$text .= ("<ul>\n");
-						foreach ($section['lessons']['lesson'] as $key => $lesson) {
-							$lessonID = intval($lesson['id']);
-							$text .= ('<li><a href="' . $this->queryString . $this->lesson_post_id . '&manual_id=' . $manual_id . '&lesson_id=' . $lessonID . '">' . 
-								$lesson['title'] . "</a></li>\n");
+						if ($section['lessons']['lesson']) {
+							$text .= ("<ul>\n");
+							foreach ($section['lessons']['lesson'] as $key => $lesson) {
+								$lessonID = intval($lesson['id']);
+								$text .= ('<li><a href="' . $link_to_lesson . $this->lesson_post_id . '&manual_id=' . $manual_id . '&lesson_id=' . $lessonID . '">' . 
+									$lesson['title'] . "</a></li>\n");
+							}
+							$text .= ("</ul>\n");
 						}
-						$text .= ("</ul>\n");
 					}
 				}
 				
@@ -233,19 +224,22 @@ class SSLiveWordPress extends SSLiveAPI {
 			$array =& $this->arrays['lesson'];
 			
 			if ($array) {
-				
-				$text .= ('<p>' . $array['description'] . "</p>\n");
+				if ($array['description'] != '' && $array['description'] != '<p></p>') {
+					$text .= ('<p>' . $array['description'] . "</p>\n");
+				}
 				
 				if (count($array['steps']['step']) == 0)
 				{
 					$text .= ("<p>Lesson has no steps.</p>\n");
 				} else {
-					foreach ($array['steps']['step'] as $key => $step) {
-						$text .= ('<h3>' . $step['title'] . "</h3>\n");
-						$text .= ('<p>' . $step['instructions'] . "</p>\n");
-						$text .= ('<p><img src="' . $step['media'][0]['url'] . 
-							'" width="' . $step['media'][0]['width'] . '" height="' . $step['media'][0]['height'] . '" />' . "\n");
-						$text .= ('<p></p>' . "\n");
+					if ($array['steps']['step']) {
+						foreach ($array['steps']['step'] as $key => $step) {
+							$text .= ('<h3>' . $step['title'] . "</h3>\n");
+							$text .= ('<p>' . $step['instructions'] . "</p>\n");
+							$text .= ('<p><img src="' . $step['media'][0]['url'] . 
+								'" width="' . $step['media'][0]['width'] . '" height="' . $step['media'][0]['height'] . '" />' . "\n");
+							$text .= ('<p></p>' . "\n");
+						}
 					}
 				}
 			} else {
@@ -278,6 +272,18 @@ class SSLiveWordPress extends SSLiveAPI {
 	}
 	
 	// PRIVATE
+	
+	function GetLinkToWordPressPage($page_id, $prepareForQuery=true) {
+		$link = get_permalink($page_id);
+		if ($prepareForQuery) {
+			$urlParts = parse_url($this->queryString);
+			if ($urlParts['query'] == '')
+				$link .= '?';
+			else
+				$link .= '&';
+		}
+		return $link;
+	}
 	
 	function FilterManuals(&$array) {
 		$manuals = array();
