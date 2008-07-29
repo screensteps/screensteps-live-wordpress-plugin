@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://URI_Of_Page_Describing_Plugin_and_Updates
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 0.9.2
+Version: 0.9.3
 Author: Trevor DeVore
 Author URI: http://www.screensteps.com
 */

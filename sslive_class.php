@@ -1,6 +1,6 @@
 <?php
 
-// Version 0.6.0.1
+// Version 0.7.0.1
 
 // You need to get this from PEAR
 // http://pear.php.net/package/Crypt_HMAC
