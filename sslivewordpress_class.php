@@ -3,7 +3,7 @@
 // Version 0.9.3.1
 
 // Include ScreenSteps Live class file
-require_once('sslive_class.php');
+require_once(dirname(__FILE__) . '/sslive_class.php');
 
 
 //////

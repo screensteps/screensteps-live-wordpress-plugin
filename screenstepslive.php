@@ -32,7 +32,7 @@ function screenstepslive_initializeObject()
 			update_option('screenstepslive_protocol', 'http');
 		}
 		
-		require_once('sslivewordpress_class.php');
+		require_once(dirname(__FILE__) . '/sslivewordpress_class.php');
 		
 		// Create ScreenSteps Live object using your domain and API key
 		$screenstepslivewp = new SSLiveWordPress(get_option('screenstepslive_domain'), 
