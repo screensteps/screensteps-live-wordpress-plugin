@@ -44,6 +44,21 @@ class SSLiveAPI {
 	
 	// PUBLIC
 	
+	function GetSpaces() {
+		// Example URL: http://example.screensteps.com/spaces
+		$data = '';
+
+		$this->last_error = $this->requestURLData($this->getCompleteURL('/spaces/'), $data);
+		if ($this->last_error == '') {
+			if ($this->use_simplexml)
+				return simplexml_load_string($data);
+			else
+				return $this->XMLToArray($data, 'manuals');
+		} else {
+			return NULL;
+		}
+	}
+	
 	function GetManuals() {
 		// Example URL: http://example.screensteps.com/api/manuals
 		$data = '';
