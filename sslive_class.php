@@ -1,6 +1,6 @@
 <?php
 
-// Version 0.7.0.1
+// Version 0.8.0.1
 
 // You need to get this from PEAR
 // http://pear.php.net/package/Crypt_HMAC
@@ -53,33 +53,32 @@ class SSLiveAPI {
 			if ($this->use_simplexml)
 				return simplexml_load_string($data);
 			else
-				return $this->XMLToArray($data, 'manuals');
+				return $this->XMLToArray($data, 'spaces');
 		} else {
 			return NULL;
 		}
 	}
 	
-	function GetManuals() {
-		// Example URL: http://example.screensteps.com/api/manuals
+	function GetSpace($space_id) {
+		// Example URL: http://example.screensteps.com/spaces/id
 		$data = '';
-
-		$this->last_error = $this->requestURLData($this->getCompleteURL('/api/manuals/'), $data);
+		
+		$this->last_error = $this->requestURLData($this->getCompleteURL('/spaces/'. $space_id), $data);
 		if ($this->last_error == '') {
 			if ($this->use_simplexml)
 				return simplexml_load_string($data);
 			else
-				return $this->XMLToArray($data, 'manuals');
+				return $this->XMLToArray($data, 'space');
 		} else {
 			return NULL;
 		}
 	}
 	
-	function GetManual($manual_id) {
-		// Example URL: http://example.screensteps.com/api/manuals/46
+	function GetManual($space_id, $manual_id) {
+		// Example URL: http://example.screensteps.com/spaces/ID/manuals/ID
 		$data = '';
 		
-		$manual_id = intval($manual_id);
-		$this->last_error = $this->requestURLData($this->getCompleteURL('/api/manuals/'. $manual_id), $data);
+		$this->last_error = $this->requestURLData($this->getCompleteURL('/spaces/' . $space_id . '/manuals/'. $manual_id), $data);
 		if ($this->last_error == '') {
 			if ($this->use_simplexml)
 				return simplexml_load_string($data);
@@ -90,13 +89,44 @@ class SSLiveAPI {
 		}
 	}
 	
-	function GetLesson($manual_id, $lesson_id) {
-		// Example URL: http://example.screensteps.com/api/manuals/46/lessons/169
+	function GetBucket($space_id, $bucket_id) {
+		// Example URL: http://example.screensteps.com/spaces/ID/buckets/ID
 		$data = '';
 		
-		$manual_id = intval($manual_id);
+		$this->last_error = $this->requestURLData($this->getCompleteURL('/spaces/' . $space_id . '/buckets/'. $bucket_id), $data);
+		if ($this->last_error == '') {
+			if ($this->use_simplexml)
+				return simplexml_load_string($data);
+			else
+				return $this->XMLToArray($data, 'bucket');
+		} else {
+			return NULL;
+		}
+	}
+	
+	function GetManualLesson($space_id, $manual_id, $lesson_id) {
+		// Example URL: http://example.screensteps.com/spaces/ID/manuals/ID/lessons/ID
+		$data = '';
+		
 		$lesson_id = intval($lesson_id);
-		$this->last_error = $this->requestURLData($this->getCompleteURL('/api/manuals/'. $manual_id . '/lessons/' . $lesson_id), $data);
+		$this->last_error = $this->requestURLData($this->getCompleteURL('/spaces/' . $space_id . '/manuals/'. $manual_id . '/lessons/' . $lesson_id), $data);
+		if ($this->last_error == '') {
+			if ($this->use_simplexml)
+				return simplexml_load_string($data);
+			else
+				return $this->XMLToArray($data, 'lesson');
+		} else {
+			return NULL;
+		}
+	}
+	
+	
+	function GetBucketLesson($space_id, $bucket_id, $lesson_id) {
+		// Example URL: http://example.screensteps.com/spaces/ID/buckets/ID/lessons/ID
+		$data = '';
+		
+		$lesson_id = intval($lesson_id);
+		$this->last_error = $this->requestURLData($this->getCompleteURL('/spaces/' . $space_id . '/buckets/'. $bucket_id . '/lessons/' . $lesson_id), $data);
 		if ($this->last_error == '') {
 			if ($this->use_simplexml)
 				return simplexml_load_string($data);
@@ -130,6 +160,7 @@ class SSLiveAPI {
 				
 		## Build authentication header
 		$header[] = "Content-Type: application/xml";
+		$header[] = "Accept: application/xml";
 		$header[] = "Date: " . $httpDate;
 		$header[] = "Authorization: " . $this->encode($this->domain . ':' . $path_query . ':' . $httpDate);
 		
@@ -156,7 +187,7 @@ class SSLiveAPI {
 	
 	// No SimpleXML in PHP 4...
 	function XMLToArray($data, $type) {
-		//print ($data);
+		// print_r ($data);
 		
 		// Create an configure
 		$parser = xml_parser_create('UTF-8');
@@ -170,6 +201,7 @@ class SSLiveAPI {
 		xml_set_character_data_handler($parser, 'character_data');
 		
 		// Initialize variables
+		$array = array();
 		$this->xml_node_arrays = array();
 		$this->xml_current_tag = array();
 		$this->xml_depth = -1;
@@ -181,16 +213,28 @@ class SSLiveAPI {
 		xml_parser_free($parser);
 		
 		// Now point array that is returned at the proper dimension of the array.
-		switch ($type) {
-			case 'manuals':
-				$array = $this->xml_node_arrays[0]['manuals'];
-				break;
-			case 'manual':
-				$array = $this->xml_node_arrays[0]['manual'];
-				break;
-			case 'lesson':
-				$array = $this->xml_node_arrays[0]['lesson'];
-				break;
+		if (isset($this->xml_node_arrays[0])) 
+		{
+			switch ($type) {
+				case 'spaces':
+					$array = $this->xml_node_arrays[0]['spaces'];
+					break;
+				case 'space':
+					$array = $this->xml_node_arrays[0]['space'];
+					break;
+				/*case 'manuals':
+					$array = $this->xml_node_arrays[0]['manuals'];
+					break;*/
+				case 'manual':
+					$array = $this->xml_node_arrays[0]['manual'];
+					break;
+				case 'bucket':
+					$array = $this->xml_node_arrays[0]['bucket'];
+					break;
+				case 'lesson':
+					$array = $this->xml_node_arrays[0]['lesson'];
+					break;
+			}
 		}
 		
 		// cleanup
@@ -210,26 +254,60 @@ class SSLiveAPI {
 	
 	function tag_close($parser, $tagName)
 	{
+		//print '$tagName: ' . $tagName . "\n";
+		
 		if ($this->last_depth_closed >= 0 && $this->xml_depth < $this->last_depth_closed) {
+			
 			// Closing level. Store array.
 			$parentTagName = $this->xml_current_tag[$this->xml_depth];
 			$storeAsArrayIndex = TRUE;
 			
 			// Determine which nodes are stored as indexes and which are stored as simple keyed arrays.
+			//print '$this->xml_doc_type: ' . $this->xml_doc_type . "\n";
+			//print '$parentTagName: ' . $parentTagName . "\n";
 			switch ($this->xml_doc_type) {
-				case 'manuals':
+				case 'spaces':
+					switch ($parentTagName) {
+						case 'spaces':
+							$storeAsArrayIndex = FALSE;
+							break;
+					}
+					break;
+					
+				case 'space':
+					switch ($parentTagName) {
+						case 'space':
+						case 'assets':
+							$storeAsArrayIndex = FALSE;
+							break;
+					}
+					break;
+					
+				/*case 'manuals':
 					switch ($parentTagName) {
 						case 'manuals':
 							$storeAsArrayIndex = FALSE;
 							break;
 					}
-					break;
+					break;*/
 				
 				case 'manual':
 					switch ($parentTagName) {
 						case 'manual':
-						case 'sections':
+						case 'space':
+						case 'chapters':
 						case 'lessons':
+						case 'tags':
+							$storeAsArrayIndex = FALSE;
+							break;
+					}
+					break;
+				
+				case 'bucket':
+					switch ($parentTagName) {
+						case 'bucket':
+						case 'lessons':
+						case 'tags':
 							$storeAsArrayIndex = FALSE;
 							break;
 					}
@@ -239,6 +317,8 @@ class SSLiveAPI {
 					switch ($parentTagName) {
 						case 'lesson':
 						case 'manual':
+						case 'bucket':
+						case 'space':
 						case 'steps':
 						case 'next_lesson':
 						case 'previous_lesson':
@@ -257,6 +337,15 @@ class SSLiveAPI {
 			// Reset array for previous level
 			$this->xml_node_arrays[$this->xml_depth + 1] = array();
 		}
+		else
+		{
+			// Make sure node exists for tag. Empty nodes won't call character_data			
+			if (!isset($this->xml_node_arrays[$this->xml_depth][$tagName])) {
+				//print "not set: " . $tagName . "\n";
+				$this->xml_node_arrays[$this->xml_depth][$tagName] = '';
+			}
+			
+		}
 		
 		$this->last_depth_closed = $this->xml_depth;
 		
@@ -266,8 +355,12 @@ class SSLiveAPI {
 	
 	// Stores text of current node
 	function character_data($parser, $string) {
+		//print 'tag name: ' . $this->xml_current_tag[$this->xml_depth] . "\n";
 		if (trim($string) != '') {
 			$tagName = $this->xml_current_tag[$this->xml_depth];
+			// Avoid 'notices' by defining elements
+			if (!isset($this->xml_node_arrays[$this->xml_depth])) $this->xml_node_arrays[$this->xml_depth] = array();
+			if (!isset($this->xml_node_arrays[$this->xml_depth][$tagName])) $this->xml_node_arrays[$this->xml_depth][$tagName] = '';
 			$this->xml_node_arrays[$this->xml_depth][$tagName] .= $string;
 		}
 	}

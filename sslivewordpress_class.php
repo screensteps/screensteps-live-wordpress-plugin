@@ -11,6 +11,8 @@ require_once(dirname(__FILE__) . '/sslive_class.php');
 //////
 class SSLiveWordPress extends SSLiveAPI {
 	// Public
+	var $unauthorized_space_msg = 'You are not authorized to view this space.';
+	var $unauthorized_bucket_msg = 'You are not authorized to view this bucket.';
 	var $unauthorized_msg = 'You are not authorized to view this manual.';
 	var $manual_settings = array();
 	var $user_can_read_private = 0;
@@ -30,6 +32,8 @@ class SSLiveWordPress extends SSLiveAPI {
 	// Constructor
 	function __construct ($domain, $api_key, $protocol='http') {		
 		// Cache
+		$this->arrays['spaces'] = NULL;
+		$this->arrays['space'] = NULL;
 		$this->arrays['manuals'] = NULL;
 		$this->arrays['manual'] = NULL;
 		$this->arrays['lesson'] = NULL;
@@ -44,21 +48,69 @@ class SSLiveWordPress extends SSLiveAPI {
 	
 	// PUBLIC
 	
-	function GetLinkToManualIndex() {
-		return $this->GetLinkToWordPressPage($this->manuals_index_post_id, false);
+	function GetLinkToSpacesIndex() {
+		return $this->GetLinkToWordPressPage($this->spaces_index_post_id, false);
 	}
 	
+	function GetLinkToSpace($space_id) {
+		$link_to_space = $this->GetLinkToWordPressPage($this->space_post_id);
+		return $link_to_space . 'space_id=' . $space_id;
+	}	
 	
-	function GetLinkToManual($manual_id) {
+	function GetLinkToManual($space_id, $manual_id) {
 		$link_to_manual = $this->GetLinkToWordPressPage($this->manual_post_id);
-		return $link_to_manual . 'manual_id=' . $manual_id;
+		return $link_to_manual . 'space_id=' . $space_id . '&manual_id=' . $manual_id;
 	}
 	
 	
-	function GetManualTitle($manual_id) {
+	function GetLinkToManualLesson($space_id, $manual_id, $lesson_id) {
+		$link_to_lesson = $this->GetLinkToWordPressPage($this->lesson_post_id);
+		return $link_to_lesson . 'space_id=' . $space_id . '&manual_id=' . $manual_id . '&lesson_id=' . $lesson_id;
+	}
+	
+	
+	function GetLinkToBucketLesson($space_id, $bucket_id, $lesson_id) {
+		$link_to_lesson = $this->GetLinkToWordPressPage($this->bucket_lesson_post_id);
+		return $link_to_lesson . 'space_id=' . $space_id . '&bucket_id=' . $bucket_id . '&lesson_id=' . $lesson_id;
+	}
+	
+	
+	function GetLinkToBucket($space_id, $bucket_id) {
+		$link_to_bucket = $this->GetLinkToWordPressPage($this->bucket_post_id);
+		return $link_to_bucket . 'space_id=' . $space_id . '&bucket_id=' . $bucket_id;
+	}
+	
+	
+	function GetSpaceTitle($space_id) {
 		$title = '';
 		
-		$this->CacheManual($manual_id);
+		$this->CacheSpace($space_id);
+		
+		if ($this->arrays['space']) {
+			$title = $this->arrays['space']['title'];
+		}
+		
+		return $title;
+	}
+	
+	
+	function GetBucketTitle($space_id, $bucket_id) {
+		$title = '';
+		
+		$this->CacheBucket($space_id, $bucket_id);
+		
+		if ($this->arrays['bucket']) {
+			$title = $this->arrays['bucket']['title'];
+		}
+		
+		return $title;
+	}
+	
+	
+	function GetManualTitle($space_id, $manual_id) {
+		$title = '';
+		
+		$this->CacheManual($space_id, $manual_id);
 		
 		if ($this->arrays['manual']) {
 			$title = $this->arrays['manual']['title'];
@@ -68,10 +120,23 @@ class SSLiveWordPress extends SSLiveAPI {
 	}
 	
 	
-	function GetLessonTitle($manual_id, $lesson_id) {
+	function GetManualLessonTitle($space_id, $manual_id, $lesson_id) {
 		$title = '';
 		
-		$this->CacheLesson($manual_id, $lesson_id);
+		$this->CacheManualLesson($space_id, $manual_id, $lesson_id);
+
+		if ($this->arrays['lesson']) {
+			$title = $this->arrays['lesson']['title'];
+		}
+		
+		return $title;
+	}
+	
+	
+	function GetBucketLessonTitle($space_id, $bucket_id, $lesson_id) {
+		$title = '';
+		
+		$this->CacheBucketLesson($space_id, $bucket_id, $lesson_id);
 		
 		if ($this->arrays['lesson']) {
 			$title = $this->arrays['lesson']['title'];
@@ -81,88 +146,94 @@ class SSLiveWordPress extends SSLiveAPI {
 	}
 	
 	
-	function GetLinkToPrevLesson($manual_id, $lesson_id, $text) {
+	function GetLinkToPrevLesson($space_id, $type, $manual_id, $lesson_id, $text) {
 		$link = '';
 		
-		$this->CacheLesson($manual_id, $lesson_id);
+		if ($type == 'manual') {
+			$this->CacheManualLesson($space_id, $manual_id, $lesson_id);
 		
-		if ($this->arrays['lesson']) {		
-			$prevLessonID = intval($this->arrays['lesson']['manual']['previous_lesson']['id']);
-			if ($prevLessonID > 0) {
-				$link_to_lesson = $this->GetLinkToWordPressPage($this->lesson_post_id);
-				$link = '<a href="' . $link_to_lesson . 'manual_id=' . $manual_id . '&lesson_id=' . $prevLessonID . '">' .
-							$text . '</a>';
+			if ($this->arrays['lesson']) {		
+				$prevLessonID = intval($this->arrays['lesson']['manual']['previous_lesson']['id']);
+				if ($prevLessonID > 0) {
+					$link_to_lesson = $this->GetLinkToManualLesson($space_id, $manual_id, $prevLessonID);
+					$link .= ('<a href="' . $link_to_lesson . '">' . $text . "</a>");
+				}
 			}
 		}
 		return $link;
 	}
 	
 	
-	function GetPrevLessonTitle($manual_id, $lesson_id) {
+	function GetPrevLessonTitle($space_id, $type, $manual_id, $lesson_id) {
 		$title = '';
 		
-		$this->CacheLesson($manual_id, $lesson_id);
-		
-		if ($this->arrays['lesson']) {
-			$prevLessonID = intval($this->arrays['lesson']['manual']['previous_lesson']['id']);
-			if ($prevLessonID > 0)
-				$title = $this->arrays['lesson']['manual']['previous_lesson']['title'];
-		}
-		return $title;
-	}
-	
-	
-	function GetLinkToNextLesson($manual_id, $lesson_id, $text) {
-		$link = '';
-		
-		$this->CacheLesson($manual_id, $lesson_id);
-		
-		if ($this->arrays['lesson']) {
-			$nextLessonID = intval($this->arrays['lesson']['manual']['next_lesson']['id']);
-			if ($nextLessonID > 0) {
-				$link_to_lesson = $this->GetLinkToWordPressPage($this->lesson_post_id);
-				$link = '<a href="' . $link_to_lesson . 'manual_id=' . $manual_id . '&lesson_id=' . $nextLessonID . '">' .
-							$text . '</a>';
-			}
-		}
-		return $link;
-	}
-	
-	
-	function GetNextLessonTitle($manual_id, $lesson_id) {
-		$title = '';
-		
-		$this->CacheLesson($manual_id, $lesson_id);
-		
-		if ($this->arrays['lesson']) {
-			$prevLessonID = intval($this->arrays['lesson']['manual']['next_lesson']['id']);
-			if ($prevLessonID > 0)
-				$title = $this->arrays['lesson']['manual']['next_lesson']['title'];
-		}
-		return $title;
-	}
-	
-	
-	function GetManualsList() {
-		$text = '';
-		$manuals = array();
-		
-		$this->CacheManuals();
-		$array =& $this->arrays['manuals'];
-		if ($array) {
-			$manuals = $this->FilterManuals($array);
+		if ($type == 'manual') {
+			$this->CacheManualLesson($space_id, $manual_id, $lesson_id);
 			
-			if (count($manuals) == 0) {
-				$text .= "<p>No manuals found.</p>";
+			if ($this->arrays['lesson']) {
+				$prevLessonID = intval($this->arrays['lesson']['manual']['previous_lesson']['id']);
+				if ($prevLessonID > 0)
+					$title = $this->arrays['lesson']['manual']['previous_lesson']['title'];
+			}
+		}
+		return $title;
+	}
+	
+	
+	function GetLinkToNextLesson($space_id, $type, $manual_id, $lesson_id, $text) {
+		$link = '';
+		
+		if ($type == 'manual') {
+			$this->CacheManualLesson($space_id, $manual_id, $lesson_id);
+			
+			if ($this->arrays['lesson']) {
+				$nextLessonID = intval($this->arrays['lesson']['manual']['next_lesson']['id']);
+				if ($nextLessonID > 0) {
+					$link_to_lesson = $this->GetLinkToManualLesson($space_id, $manual_id, $nextLessonID);
+					$link .= ('<a href="' . $link_to_lesson . '">' . $text . "</a>");
+				}
+			}
+		}
+		return $link;
+	}
+	
+	
+	function GetNextLessonTitle($space_id, $type, $manual_id, $lesson_id) {
+		$title = '';
+		
+		if ($type == 'manual') {
+			$this->CacheManualLesson($space_id, $manual_id, $lesson_id);
+			
+			if ($this->arrays['lesson']) {
+				$prevLessonID = intval($this->arrays['lesson']['manual']['next_lesson']['id']);
+				if ($prevLessonID > 0)
+					$title = $this->arrays['lesson']['manual']['next_lesson']['title'];
+			}
+		}
+		return $title;
+	}
+	
+	
+	function GetSpacesList() {
+		$text = '';
+		$spaces = array();
+		
+		$this->CacheSpaces();
+		$array =& $this->arrays['spaces'];
+		if ($array) {
+			$spaces = $this->FilterSpaces($array);
+			
+			if (count($spaces) == 0) {
+				$text .= "<p>No spaces found.</p>";
 			} else {
-				$link_to_manual = $this->GetLinkToWordPressPage($this->manual_post_id);
+				$link_to_space = $this->GetLinkToWordPressPage($this->space_post_id);
 				
 				print ("<ul>\n");
-				foreach ($manuals as $key => $manual) {
-					$manual_id = intval($manual['id']);
-					if ($this->manual_settings[$manual_id] != '') {
-						if ($this->UserCanViewManual($this->manual_settings[$manual_id])) {
-							$text .= ('<li><a href="' . $link_to_manual . 'manual_id=' . $manual_id . '">' . $manual['title'] . "</a></li>\n");
+				foreach ($spaces as $key => $space) {
+					$space_id = intval($space['id']);
+					if ($this->spaces_settings[$space_id] != '') {
+						if ($this->UserCanViewSpace($this->spaces_settings[$space_id])) {
+							$text .= ('<li><a href="' . $link_to_space . 'space_id=' . $space_id . '">' . $space['title'] . "</a></li>\n");
 						}
 					}
 				}
@@ -175,29 +246,66 @@ class SSLiveWordPress extends SSLiveAPI {
 		return $text;
 	}
 	
-	function GetManualList($manual_id) {
+	function GetSpaceList($space_id) {
 		$text = '';
 		
 		// Validate that user can view this manual
-		if ($this->UserCanViewManual($this->manual_settings[$manual_id])) {
-			$this->CacheManual($manual_id);
+		if ($this->UserCanViewSpace($this->spaces_settings[$space_id])) {
+			$this->CacheSpace($space_id);
+			$array =& $this->arrays['space'];
+
+			if ($array) {
+				if (count($array['assets']['asset']) == 0) {
+					$text .= "<p>Space has no assets.</p>";
+				} else {					
+					$text .= ("<ul>\n");
+					foreach ($array['assets']['asset'] as $asset) {
+						if (strtolower($asset['type']) == 'manual')
+						{
+							$link_to_page = $this->GetLinkToManual($space_id, $asset['id']);
+							$text .= ('<li><a href="' . $link_to_page . '">' . $asset['title'] . "</a></li>\n");
+						}
+						else
+						{
+							$link_to_page = $this->GetLinkToBucket($space_id, $asset['id']);
+							$text .= ('<li><a href="' . $link_to_page . '">' . $asset['title'] . "</a></li>\n");
+						}							
+					}
+					$text .= ("</ul>\n");
+				}
+				
+			} else {
+				$text .= "Error:" . $this->last_error;
+			}
+		} else {
+			$text = $this->unauthorized_space_msg;
+		}
+		
+		return $text;
+	}
+	
+	function GetManualList($space_id, $manual_id) {
+		$text = '';
+		
+		// Validate that user can view this manual
+		if ($this->UserCanViewSpace($this->spaces_settings[$space_id])) {
+			$this->CacheManual($space_id, $manual_id);
 			$array =& $this->arrays['manual'];
 		
 			if ($array) {
-				if (count($array['sections']['section']) == 0) {
-					$text .= "<p>Manual has no sections.</p>";
-				} else {
-					$link_to_lesson = $this->GetLinkToWordPressPage($this->lesson_post_id);
-					
-					foreach ($array['sections']['section'] as $key => $section) {
-						$text .= ('<h3>' . $section['title'] . '</h3>');
+				if (count($array['chapters']['chapter']) == 0) {
+					$text .= "<p>Manual has no chapters.</p>";
+				} else {					
+					foreach ($array['chapters']['chapter'] as $key => $chapter) {
+						$text .= ('<h3>' . $chapter['title'] . '</h3>');
 						
-						if ($section['lessons']['lesson']) {
+						if ($chapter['lessons']['lesson']) {
 							$text .= ("<ul>\n");
-							foreach ($section['lessons']['lesson'] as $key => $lesson) {
+							foreach ($chapter['lessons']['lesson'] as $key => $lesson) {
 								$lessonID = intval($lesson['id']);
-								$text .= ('<li><a href="' . $link_to_lesson . $this->lesson_post_id . '&manual_id=' . $manual_id . '&lesson_id=' . $lessonID . '">' . 
-									$lesson['title'] . "</a></li>\n");
+								$link_to_lesson = $this->GetLinkToManualLesson($space_id, $manual_id, $lessonID);
+								
+								$text .= ('<li><a href="' . $link_to_lesson . '">' . $lesson['title'] . "</a></li>\n");
 							}
 							$text .= ("</ul>\n");
 						}
@@ -214,13 +322,50 @@ class SSLiveWordPress extends SSLiveAPI {
 		return $text;
 	}
 	
-	function GetLessonHTML($manual_id, $lesson_id) {
+	function GetBucketList($space_id, $bucket_id) {
 		$text = '';
 		
 		// Validate that user can view this manual
-		if ($this->UserCanViewManual($this->manual_settings[$manual_id])) {
+		if ($this->UserCanViewSpace($this->spaces_settings[$space_id])) {
+			$this->CacheBucket($space_id, $bucket_id);
+			$array =& $this->arrays['bucket'];
+			//print_r($array);
+			if ($array) {
+				if (count($array['lessons']['lesson']) == 0) {
+					$text .= "<p>Bucket has no lessons.</p>";
+				} else {
+					$text .= ("<ul>\n");
+					foreach ($array['lessons']['lesson'] as $key => $lesson) {						
+						$lessonID = intval($lesson['id']);
+						$link_to_lesson = $this->GetLinkToBucketLesson($space_id, $bucket_id, $lessonID);
+						
+						$text .= ('<li><a href="' . $link_to_lesson . '">' . $lesson['title'] . "</a></li>\n");
+					}
+					$text .= ("</ul>\n");
+				}
+				
+			} else {
+				$text .= "Error:" . $this->last_error;
+			}
+		} else {
+			$text = $this->unauthorized_bucket_msg;
+		}
 		
-			$this->CacheLesson($manual_id, $lesson_id);
+		return $text;
+	}
+	
+	function GetLessonHTML($space_id, $type, $type_id, $lesson_id) {
+		$text = '';
+		
+		// Validate that user can view this manual
+		if ($this->UserCanViewSpace($this->spaces_settings[$space_id])) {
+			
+			if (strtolower($type) == 'manual') {
+				$this->CacheManualLesson($space_id, $type_id, $lesson_id);
+			} else {
+				$this->CacheBucketLesson($space_id, $type_id, $lesson_id);
+			}
+			
 			$array =& $this->arrays['lesson'];
 			
 			if ($array) {
@@ -254,21 +399,36 @@ class SSLiveWordPress extends SSLiveAPI {
 	}
 	
 	
-	function CacheManuals() {
-		if (!$this->arrays['manuals'])
-			$this->arrays['manuals'] = parent::GetManuals();
+	function CacheSpaces() {
+		if (!$this->arrays['spaces'])
+			$this->arrays['spaces'] = parent::GetSpaces();
+	}
+	
+	function CacheSpace($space_id) {
+		if (!$this->arrays['space'])
+			$this->arrays['space'] = parent::GetSpace($space_id);
+	}
+	
+	function CacheBucket($space_id, $bucket_id) {
+		if (!$this->arrays['bucket'])
+			$this->arrays['bucket'] = parent::GetBucket($space_id,$bucket_id);
 	}
 	
 	
-	function CacheManual($manual_id) {
+	function CacheManual($space_id, $manual_id) {
 		if (!$this->arrays['manual'])
-			$this->arrays['manual'] = parent::GetManual($manual_id);
+			$this->arrays['manual'] = parent::GetManual($space_id, $manual_id);
 	}
 	
 	
-	function CacheLesson($manual_id, $lesson_id) {
+	function CacheManualLesson($space_id, $manual_id, $lesson_id) {
 		if (!$this->arrays['lesson'])
-			$this->arrays['lesson'] = parent::GetLesson($manual_id, $lesson_id);
+			$this->arrays['lesson'] = parent::GetManualLesson($space_id, $manual_id, $lesson_id);
+	}
+	
+	function CacheBucketLesson($space_id, $bucket_id, $lesson_id) {
+		if (!$this->arrays['lesson'])
+			$this->arrays['lesson'] = parent::GetBucketLesson($space_id, $bucket_id, $lesson_id);
 	}
 	
 	// PRIVATE
@@ -285,22 +445,26 @@ class SSLiveWordPress extends SSLiveAPI {
 		return $link;
 	}
 	
-	function FilterManuals(&$array) {
-		$manuals = array();
+	function FilterSpaces(&$array) {
+		$spaces = array();
 		
-		foreach ($array['manual'] as $key => $manual) {
-			$manual_id = intval($manual['id']);
-			if ($this->manual_settings[$manual_id] != '') {
-				if ($this->UserCanViewManual($this->manual_settings[$manual_id])) {
-					$manuals[] = $manual;
+		foreach ($array['space'] as $key => $space) {
+			$space_id = intval($space['id']);
+			if ($this->spaces_settings[$space_id] != '') {
+				if ($this->UserCanViewSpace($this->spaces_settings[$space_id])) {
+					$spaces[] = $space;
 				}
 			}
 		}
 
-		return $manuals;
+		return $spaces;
 	}
 	
 	function UserCanViewManual($permission_setting) {
+		return ($permission_setting == 'everyone' || ($permission_setting == 'public' && !$this->user_can_read_private) || ($permission_setting == 'private' && $this->user_can_read_private));
+	}
+	
+	function UserCanViewSpace($permission_setting) {
 		return ($permission_setting == 'everyone' || ($permission_setting == 'public' && !$this->user_can_read_private) || ($permission_setting == 'private' && $this->user_can_read_private));
 	}
 }

@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: ScreenSteps Live
-Plugin URI: http://URI_Of_Page_Describing_Plugin_and_Updates
+Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
 Version: 0.9.3
 Author: Trevor DeVore
@@ -39,11 +39,16 @@ function screenstepslive_initializeObject()
 										get_option('screenstepslive_api_key'), 
 										get_option('screenstepslive_protocol'));
 		$screenstepslivewp->show_protected = true;
-		$screenstepslivewp->manual_settings = get_option('screenstepslive_manual_settings');
+		$screenstepslivewp->spaces_settings = get_option('screenstepslive_spaces_settings');
+		//$screenstepslivewp->manual_settings = get_option('screenstepslive_manual_settings');
 		$screenstepslivewp->user_can_read_private = current_user_can('read_private_posts') == 1;
-		$screenstepslivewp->manuals_index_post_id = get_option('screenstepslive_manuals_index_post_id');
+		
+		$screenstepslivewp->spaces_index_post_id = get_option('screenstepslive_spaces_index_post_id');
+		$screenstepslivewp->space_post_id = get_option('screenstepslive_space_post_id');
 		$screenstepslivewp->manual_post_id = get_option('screenstepslive_manual_post_id');
-		$screenstepslivewp->lesson_post_id = get_option('screenstepslive_lesson_post_id');
+		$screenstepslivewp->bucket_post_id = get_option('screenstepslive_bucket_post_id');
+		$screenstepslivewp->lesson_post_id = get_option('screenstepslive_lesson_post_id'); // For manuals. We used this before spaces.
+		$screenstepslivewp->bucket_lesson_post_id = get_option('screenstepslive_bucket_lesson_post_id');
 	}
 	
 	// Any caller will just get a reference to this object.
@@ -52,19 +57,39 @@ function screenstepslive_initializeObject()
 
 
 function screenstepslive_parseTitle($the_title) {
-	if (strpos($the_title, '{{SCREENSTEPSLIVE_MANUAL_TITLE}}') !== FALSE ) {
+	if (strpos($the_title, '{{SCREENSTEPSLIVE_SPACE_TITLE}}') !== FALSE ) {
 		$sslivewp = screenstepslive_initializeObject();
 				
+		$space_id = intval($_GET['space_id']);
+		if ($space_id > 0)
+			$the_title = preg_replace('/{{SCREENSTEPSLIVE_SPACE_TITLE}}/i', $sslivewp->GetSpaceTitle($space_id), $the_title);
+		
+	} else if (strpos($the_title, '{{SCREENSTEPSLIVE_MANUAL_TITLE}}') !== FALSE ) {
+		$sslivewp = screenstepslive_initializeObject();
+		
+		$space_id = intval($_GET['space_id']);
 		$manual_id = intval($_GET['manual_id']);
 		if ($manual_id > 0)
-			$the_title = preg_replace('/{{SCREENSTEPSLIVE_MANUAL_TITLE}}/i', $sslivewp->GetManualTitle($manual_id), $the_title);
+			$the_title = preg_replace('/{{SCREENSTEPSLIVE_MANUAL_TITLE}}/i', $sslivewp->GetManualTitle($space_id, $manual_id), $the_title);
+			
+	} else if (strpos($the_title, '{{SCREENSTEPSLIVE_BUCKET_TITLE}}') !== FALSE ) {
+		$sslivewp = screenstepslive_initializeObject();
+		
+		$space_id = intval($_GET['space_id']);
+		$bucket_id = intval($_GET['bucket_id']);
+		if ($bucket_id > 0)
+			$the_title = preg_replace('/{{SCREENSTEPSLIVE_BUCKET_TITLE}}/i', $sslivewp->GetBucketTitle($space_id, $bucket_id), $the_title);
 		
 	} else if (strpos($the_title, '{{SCREENSTEPSLIVE_LESSON_TITLE}}') !== FALSE ) {
 		$sslivewp = screenstepslive_initializeObject();
+		$space_id = intval($_GET['space_id']);
 		$manual_id = intval($_GET['manual_id']);
+		$bucket_id = intval($_GET['bucket_id']);
 		$lesson_id = intval($_GET['lesson_id']);
 		if ($manual_id > 0 && $lesson_id > 0)
-			$the_title = preg_replace('/{{SCREENSTEPSLIVE_LESSON_TITLE}}/i', $sslivewp->GetLessonTitle($manual_id, $lesson_id), $the_title);
+			$the_title = preg_replace('/{{SCREENSTEPSLIVE_LESSON_TITLE}}/i', $sslivewp->GetManualLessonTitle($space_id, $manual_id, $lesson_id), $the_title);
+		else if ($bucket_id > 0 && $lesson_id > 0)
+			$the_title = preg_replace('/{{SCREENSTEPSLIVE_LESSON_TITLE}}/i', $sslivewp->GetBucketLessonTitle($space_id, $bucket_id, $lesson_id), $the_title);
 	}
 	
 	return ($the_title);
@@ -77,44 +102,70 @@ function screenstepslive_parseContent($the_content)
 	if (stristr($the_content, '{{SCREENSTEPSLIVE_CONTENT}}') !== FALSE) {
 		$text = '';
 		
+		$space_id = intval($_GET['space_id']);
+		$bucket_id = intval($_GET['bucket_id']);
 		$manual_id = intval($_GET['manual_id']);
 		$lesson_id = intval($_GET['lesson_id']);
 				
 		// Include necessary SS Live files
 		$sslivewp = screenstepslive_initializeObject();
 		
-		if (!$manual_id > 0)
+		if (!$space_id > 0)
 		{
-			$text = $sslivewp->GetManualsList();
+			// Retrieve list of all spaces
+			$text = $sslivewp->GetSpacesList();
 			
-		} else if ($manual_id > 0 && $lesson_id == 0) {
-			$text = $sslivewp->GetManualList($manual_id);
+		}  else if ($space_id > 0 && $lesson_id > 0) {
+			if ($manual_id > 0) {
+				$text = $sslivewp->GetLessonHTML($space_id, 'manual', $manual_id, $lesson_id);
+				$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_MANUAL}}/i', $sslivewp->GetLinkToManual($space_id, $manual_id), $the_content);
+				$the_content = preg_replace('/{{SCREENSTEPSLIVE_MANUAL_TITLE}}/i', $sslivewp->GetManualTitle($space_id, $manual_id), $the_content);
+				$the_content = preg_replace('/{{SCREENSTEPSLIVE_PREV_LESSON_TITLE}}/i', $sslivewp->GetPrevLessonTitle($space_id, 'manual', $manual_id, $lesson_id), $the_content);
+				$the_content = preg_replace('/{{SCREENSTEPSLIVE_NEXT_LESSON_TITLE}}/i', $sslivewp->GetNextLessonTitle($space_id, 'manual', $manual_id, $lesson_id), $the_content);
+			} else if ($bucket_id > 0) {
+				$text = $sslivewp->GetLessonHTML($space_id, 'bucket', $bucket_id, $lesson_id);
+				$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_BUCKET}}/i', $sslivewp->GetLinkToBucket($space_id, $bucket_id), $the_content);
+				$the_content = preg_replace('/{{SCREENSTEPSLIVE_BUCKET_TITLE}}/i', $sslivewp->GetBucketTitle($space_id, $bucket_id), $the_content);
+			}
 			
-			$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_MANUALS_INDEX}}/i', $sslivewp->GetLinkToManualIndex(), $the_content);
-			$the_content = preg_replace('/{{SCREENSTEPSLIVE_MANUAL_TITLE}}/i', $sslivewp->GetManualTitle($manual_id), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_SPACES_INDEX}}/i', $sslivewp->GetLinkToSpacesIndex(), $the_content);
+			
+			if ($manual_id > 0) {
+				// Prev lesson link
+				$result = preg_match('/{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text=(?:&#8221;|&quot;)(.*?)(?:&#8221;|&quot;)}}/i', $the_content, $matches);
+				if ($result) {
+					$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text=(?:&#8221;|&quot;)(.*?)(?:&#8221;|&quot;)}}/i', 
+									$sslivewp->GetLinkToPrevLesson($space_id, 'manual', $manual_id, $lesson_id, $matches[1]), $the_content);
+				}
+				
+				// Next lesson link
+				$result = preg_match('/{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text=(?:&#8221;|&quot;)(.*?)(?:&#8221;|&quot;)}}/i', $the_content, $matches);
+				if ($result) {
+					$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text=(?:&#8221;|&quot;)(.*?)(?:&#8221;|&quot;)}}/i', 
+									$sslivewp->GetLinkToNextLesson($space_id, 'manual', $manual_id, $lesson_id, $matches[1]), $the_content);
+				}
+			}
+			
+		} else if ($space_id > 0 && $manual_id > 0) {
+			$text = $sslivewp->GetManualList($space_id, $manual_id);
+						
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_SPACES_INDEX}}/i', $sslivewp->GetLinkToSpacesIndex(), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_SPACE}}/i', $sslivewp->GetLinkToSpace($space_id), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_SPACE_TITLE}}/i', $sslivewp->GetSpaceTitle($space_id), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_MANUAL_TITLE}}/i', $sslivewp->GetManualTitle($space_id, $manual_id), $the_content);
 		
-		}  else if ($manual_id > 0 && $lesson_id > 0) {
-			$text = $sslivewp->GetLessonHTML($manual_id, $lesson_id);
+		} else if ($space_id > 0 && $bucket_id > 0) {
+			$text = $sslivewp->GetBucketList($space_id, $bucket_id);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_SPACES_INDEX}}/i', $sslivewp->GetLinkToSpacesIndex(), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_SPACE}}/i', $sslivewp->GetLinkToSpace($space_id), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_SPACE_TITLE}}/i', $sslivewp->GetSpaceTitle($space_id), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_BUCKET_TITLE}}/i', $sslivewp->GetBucketTitle($space_id, $bucket_id), $the_content);
+
+		} else {
+			$text = $sslivewp->GetSpaceList($space_id);
 			
-			$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_MANUALS_INDEX}}/i', $sslivewp->GetLinkToManualIndex(), $the_content);
-			$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_MANUAL}}/i', $sslivewp->GetLinkToManual($manual_id), $the_content);
-			$the_content = preg_replace('/{{SCREENSTEPSLIVE_MANUAL_TITLE}}/i', $sslivewp->GetManualTitle($manual_id), $the_content);
-			$the_content = preg_replace('/{{SCREENSTEPSLIVE_PREV_LESSON_TITLE}}/i', $sslivewp->GetPrevLessonTitle($manual_id, $lesson_id), $the_content);
-			$the_content = preg_replace('/{{SCREENSTEPSLIVE_NEXT_LESSON_TITLE}}/i', $sslivewp->GetNextLessonTitle($manual_id, $lesson_id), $the_content);
-			
-			// Prev lesson link
-			$result = preg_match('/{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text=(?:&#8221;|&quot;)(.*?)(?:&#8221;|&quot;)}}/i', $the_content, $matches);
-			if ($result) {
-				$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text=(?:&#8221;|&quot;)(.*?)(?:&#8221;|&quot;)}}/i', 
-								$sslivewp->GetLinkToPrevLesson($manual_id, $lesson_id, $matches[1]), $the_content);
-			}
-			
-			// Next lesson link
-			$result = preg_match('/{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text=(?:&#8221;|&quot;)(.*?)(?:&#8221;|&quot;)}}/i', $the_content, $matches);
-			if ($result) {
-				$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text=(?:&#8221;|&quot;)(.*?)(?:&#8221;|&quot;)}}/i', 
-								$sslivewp->GetLinkToNextLesson($manual_id, $lesson_id, $matches[1]), $the_content);
-			}
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_SPACES_INDEX}}/i', $sslivewp->GetLinkToSpacesIndex(), $the_content);
+			$the_content = preg_replace('/{{SCREENSTEPSLIVE_SPACE_TITLE}}/i', $sslivewp->GetSpaceTitle($space_id), $the_content);
 		}
 	}
 	
@@ -125,12 +176,18 @@ function screenstepslive_parseContent($the_content)
 
 
 function screenstepslive_checkIfDeletedPostIsReferenced($postID) {
-	if ($postID == get_option('screenstepslive_manuals_index_post_id'))
-		update_option('screenstepslive_manuals_index_post_id', '');
+	if ($postID == get_option('screenstepslive_spaces_index_post_id'))
+		update_option('screenstepslive_spaces_index_post_id', '');
+	else if ($postID == get_option('screenstepslive_space_post_id'))
+		update_option('screenstepslive_space_post_id', '');
 	else if ($postID == get_option('screenstepslive_manual_post_id'))
 		update_option('screenstepslive_manual_post_id', '');
+	else if ($postID == get_option('screenstepslive_bucket_post_id'))
+		update_option('screenstepslive_bucket_post_id', '');
 	else if ($postID == get_option('screenstepslive_lesson_post_id'))
 		update_option('screenstepslive_lesson_post_id', '');
+	else if ($postID == get_option('screenstepslive_bucket_lesson_post_id'))
+		update_option('screenstepslive_bucket_lesson_post_id', '');
 }
 
 
@@ -157,34 +214,45 @@ function screenstepslive_optionPage()
 	}
 	
 	if ($_POST['post_ids_submitted'] == 1) {
-		update_option('screenstepslive_manuals_index_post_id', $_POST['manuals_index_post_id']);
+		update_option('screenstepslive_spaces_index_post_id', $_POST['spaces_index_post_id']);
+		update_option('screenstepslive_space_post_id', $_POST['space_post_id']);
 		update_option('screenstepslive_manual_post_id', $_POST['manual_post_id']);
+		update_option('screenstepslive_bucket_post_id', $_POST['bucket_post_id']);
 		update_option('screenstepslive_lesson_post_id', $_POST['lesson_post_id']);
+		update_option('screenstepslive_bucket_lesson_post_id', $_POST['bucket_lesson_post_id']);
 	}
 	
 	// Manuals form was subbmited
-	if ($_POST['manuals_submitted'] == 1) {
-		$manual_settings = array();
+	if ($_POST['spaces_submitted'] == 1) {
+		$spaces_settings = array();
 		
 		// Array has keys that are ids of visible lessons. Value is permissions.
-		if (is_array($_POST['manual_visible'])) {
-			foreach($_POST['manual_visible'] as $manual_id => $value) {
-				$manual_settings[$manual_id] = $_POST['manual_permission'][$manual_id];
+		if (is_array($_POST['space_visible'])) {
+			foreach($_POST['space_visible'] as $space_id => $value) {
+				$spaces_settings[$space_id] = $_POST['space_permission'][$space_id];
 			}
 		}
 		
-		update_option('screenstepslive_manual_settings', $manual_settings);
+		update_option('screenstepslive_spaces_settings', $spaces_settings);
 	}
 	
 	// Create template pages
 	if (isset($_GET['ssliveaction'])) {
 		switch ($_GET['ssliveaction']) {
-			case 'create_manual_index_page':
+			case 'create_spaces_index_page':
 				// Don't process resubmitted pages
-				if (intval(get_option('screenstepslive_manuals_index_post_id')) < 1) {
-					$postID = screenstepslive_createTemplatePage('manuals');
+				if (intval(get_option('screenstepslive_spaces_index_post_id')) < 1) {
+					$postID = screenstepslive_createTemplatePage('spaces');
 					if (intval($postID) > 0) {
-						update_option('screenstepslive_manuals_index_post_id', $postID);
+						update_option('screenstepslive_spaces_index_post_id', $postID);
+					}
+				}
+				break;
+			case 'create_space_page':
+				if (intval(get_option('screenstepslive_space_post_id')) < 1) {
+					$postID = screenstepslive_createTemplatePage('space');
+					if (intval($postID) > 0) {
+						update_option('screenstepslive_space_post_id', $postID);
 					}
 				}
 				break;
@@ -196,11 +264,27 @@ function screenstepslive_optionPage()
 					}
 				}
 				break;
+			case 'create_bucket_page':
+				if (intval(get_option('screenstepslive_bucket_post_id')) < 1) {
+					$postID = screenstepslive_createTemplatePage('bucket');
+					if (intval($postID) > 0) {
+						update_option('screenstepslive_bucket_post_id', $postID);
+					}
+				}
+				break;
 			case 'create_lesson_page':
 				if (intval(get_option('screenstepslive_lesson_post_id')) < 1) {
 					$postID = screenstepslive_createTemplatePage('lesson');
 					if (intval($postID) > 0) {
 						update_option('screenstepslive_lesson_post_id', $postID);
+					}
+				}
+				break;
+			case 'create_bucket_lesson_page':
+				if (intval(get_option('screenstepslive_bucket_lesson_post_id')) < 1) {
+					$postID = screenstepslive_createTemplatePage('bucket lesson');
+					if (intval($postID) > 0) {
+						update_option('screenstepslive_bucket_lesson_post_id', $postID);
 					}
 				}
 				break;
@@ -227,7 +311,7 @@ END;
 					'<input type="text" name="domain" id="domain" style="width:20em;" value="'. get_option('screenstepslive_domain') . '"></td></tr>');
 			print ('<tr><th scope="row">ScreenSteps Live API Key:</th><td>' . 
 					'<input type="text" name="api_key" id="api_key" value="'. get_option('screenstepslive_api_key') . '"></td></tr>');
-			print ('<tr><th scope="row">ScreenSteps Live Domain:</th><td>' . 
+			print ('<tr><th scope="row">Protocol:</th><td>' . 
 					'<select name="protocol"><option value="http"'. $http_option . '">HTTP</option>' . 
 					'<option value="https"'. $https_option . '">HTTPS</option></select>' .
 					'</td></tr>');
@@ -251,11 +335,19 @@ END;
 			print ('<form method="post" action="' . GETENV('REQUEST_URI') . '">' . "\n");
 			print ('<input type="hidden" name="post_ids_submitted" value="1">' . "\n");
 			print ('<table class="optiontable form-table">');
-			print ('<tr><th scope="row" style="width:200px;">Manuals Index Page ID:</th><td width="30px">' . 
-					'<input type="text" name="manuals_index_post_id" id="manuals_index_post_id" value="'. get_option('screenstepslive_manuals_index_post_id') . '"></td>');
+			print ('<tr><th scope="row" style="width:200px;">Spaces Index Page ID:</th><td width="30px">' . 
+					'<input type="text" name="spaces_index_post_id" id="spaces_index_post_id" value="'. get_option('screenstepslive_spaces_index_post_id') . '"></td>');
 			print ('<td>');
-			if (intval(get_option('screenstepslive_manuals_index_post_id')) < 1) {
-				print ('Enter page id or <a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_manual_index_page">Create Manual Index Page</a>');
+			if (intval(get_option('screenstepslive_spaces_index_post_id')) < 1) {
+				print ('Enter page id or <a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_spaces_index_page">Create Spaces Index Page</a>');
+			}
+			print ('</td>');
+			print ('</td></tr>');
+			print ('<tr><th scope="row">Space Page ID:</th><td width="30px">' . 
+					'<input type="text" name="space_post_id" id="space_post_id" value="'. get_option('screenstepslive_space_post_id') . '"></td>');
+			print ('<td>');
+			if (intval(get_option('screenstepslive_space_post_id')) < 1) {
+				print ('Enter page id or <a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_space_page">Create Space Page</a>');
 			}
 			print ('</td>');
 			print ('</td></tr>');
@@ -267,11 +359,27 @@ END;
 			}
 			print ('</td>');
 			print ('</td></tr>');
-			print ('<tr><th scope="row">Lesson Page ID:</th><td width="30px">' . 
+			print ('<tr><th scope="row">Bucket Page ID:</th><td width="30px">' . 
+					'<input type="text" name="bucket_post_id" id="bucket_post_id" value="'. get_option('screenstepslive_bucket_post_id') . '"></td>');
+			print ('<td>');
+			if (intval(get_option('screenstepslive_bucket_post_id')) < 1) {
+				print ('Enter page id or <a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_bucket_page">Create Bucket Page</a>');
+			}
+			print ('</td>');
+			print ('</td></tr>');
+			print ('<tr><th scope="row">Manual Lesson Page ID:</th><td width="30px">' . 
 					'<input type="text" name="lesson_post_id" id="lesson_post_id" value="'. get_option('screenstepslive_lesson_post_id') . '"></td>');
 			print ('<td>');
 			if (intval(get_option('screenstepslive_lesson_post_id')) < 1) {
-				print ('Enter page id or <a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_lesson_page">Create Lesson Page</a>');
+				print ('Enter page id or <a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_lesson_page">Create Manual Lesson Page</a>');
+			}
+			print ('</td>');
+			print ('</tr>');
+			print ('<tr><th scope="row">Bucket Lesson Page ID:</th><td width="30px">' . 
+					'<input type="text" name="bucket_lesson_post_id" id="bucket_lesson_post_id" value="'. get_option('screenstepslive_bucket_lesson_post_id') . '"></td>');
+			print ('<td>');
+			if (intval(get_option('screenstepslive_bucket_lesson_post_id')) < 1) {
+				print ('Enter page id or <a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_bucket_lesson_page">Create Bucket Lesson Page</a>');
 			}
 			print ('</td>');
 			print ('</tr>');
@@ -285,45 +393,45 @@ echo <<<END
 	</fieldset>
 	<br />
 	<fieldset class="options">
-			<legend>ScreenSteps Live Manuals</legend>
+			<legend>ScreenSteps Live Spaces</legend>
 END;
 			
 			
-	$array = $sslivewp->GetManuals(false);
+	$array = $sslivewp->GetSpaces();
 	if ($array) {
-		if (count($array['manual']) == 0) {
-			print "<div>No manuals were returned from the ScreenSteps Live server.</div>";
+		if (count($array['space']) == 0) {
+			print "<div>No spaces were returned from the ScreenSteps Live server.</div>";
 		} else {
 			// Get stored settings
-			$manual_settings = get_option('screenstepslive_manual_settings');
+			$spaces_settings = get_option('screenstepslive_spaces_settings');
 			
 			// Print manual setings		
 			print ('<form method="post" action="' . GETENV('REQUEST_URI') . '">' . "\n");
-			print ('<input type="hidden" name="manuals_submitted" value="1">' . "\n");
+			print ('<input type="hidden" name="spaces_submitted" value="1">' . "\n");
 			print ('<table class="optiontable form-table">' . "\n");
 			print ('<tr>' . "\n");
 			print ('<th scope="column" style="width:10px;">Active</th>' . "\n");
-			print ('<th scope="column">Manual</th>' . "\n");
+			print ('<th scope="column">Space</th>' . "\n");
 			print ('<th scope="column">Permissions</th>' . "\n");
 			print ('</tr>' . "\n");
 			
-			foreach ($array['manual'] as $key => $manual) {
+			foreach ($array['space'] as $key => $space) {
 				// Determine initial state for visible checkbox and permission settings.
-				$manual_id = intval($manual['id']); // arrays don't like object props as key refs
-				$checked = ($manual_settings[$manual_id] != '') ? ' checked' : '';
+				$space_id = intval($space['id']); // arrays don't like object props as key refs
+				$checked = ($spaces_settings[$space_id] != '') ? ' checked' : '';
 				$private_option = '';
 				$public_option = '';
 				$everyone_option = '';
 				if ($checked == ' checked') {
-					$private_option = $manual_settings[$manual_id] == 'private' ? ' selected="selected"' : '';
-					$public_option = $manual_settings[$manual_id] == 'public' ? ' selected="selected"' : '';
-					$everyone_option = $manual_settings[$manual_id] == 'everyone' ? ' selected="selected"' : '';
+					$private_option = $spaces_settings[$space_id] == 'private' ? ' selected="selected"' : '';
+					$public_option = $spaces_settings[$space_id] == 'public' ? ' selected="selected"' : '';
+					$everyone_option = $spaces_settings[$space_id] == 'everyone' ? ' selected="selected"' : '';
 				}
 				
 				print ("<tr>\n");
-				print ('<td><input type="checkbox" name="manual_visible[' . $manual_id . ']"' . $checked . '></td>' . "\n");
-				print ('<td>' . $manual['title'] . "</td>\n");
-				print ('<td><select name="manual_permission[' . $manual_id . ']"><option value="private"' . $private_option . 
+				print ('<td><input type="checkbox" name="space_visible[' . $space_id . ']"' . $checked . '></td>' . "\n");
+				print ('<td>' . $space['title'] . "</td>\n");
+				print ('<td><select name="space_permission[' . $space_id . ']"><option value="private"' . $private_option . 
 						'>Private</option><option value="public"' . $public_option . '>Public</option>' . 
 						'<option value="everyone"' . $everyone_option . '>Everyone</option></select></td>' . "\n");
 				print ("</tr>\n");
@@ -332,7 +440,7 @@ END;
 
 echo <<<END
 			<div class="submit">
-				<input type="submit" id="submit_manual_settings" value="Save ScreenSteps Live Manual Permissions"/>
+				<input type="submit" id="submit_spaces_settings" value="Save ScreenSteps Live Manual Permissions"/>
 			</div>
 		</form>
 END;
@@ -363,15 +471,26 @@ function screenstepslive_createTemplatePage($type) {
 		$post['ping_status'] = 'closed';
 		
 		switch($type) {
-			case 'manuals':
-				$post['post_title'] = 'Manuals';
+			case 'spaces':
+				$post['post_title'] = 'Spaces';
+				$post['post_content'] = '{{SCREENSTEPSLIVE_CONTENT}}';
+				break;
+			
+			case 'space':
+				$post['post_title'] = '{{SCREENSTEPSLIVE_SPACE_TITLE}}';
 				$post['post_content'] = '{{SCREENSTEPSLIVE_CONTENT}}';
 				break;
 				
 			case 'manual':
 				$post['post_title'] = '{{SCREENSTEPSLIVE_MANUAL_TITLE}}';
 				$post['post_content'] = '{{SCREENSTEPSLIVE_CONTENT}}' . "\n" .
-										'<a href="{{SCREENSTEPSLIVE_LINK_TO_MANUALS_INDEX}}">Return to index</a>';
+										'<a href="{{SCREENSTEPSLIVE_LINK_TO_SPACE}}">Return to index</a>';
+				break;
+			
+			case 'bucket':
+				$post['post_title'] = '{{SCREENSTEPSLIVE_BUCKET_TITLE}}';
+				$post['post_content'] = '{{SCREENSTEPSLIVE_CONTENT}}' . "\n" .
+										'<a href="{{SCREENSTEPSLIVE_LINK_TO_SPACE}}">Return to index</a>';
 				break;
 				
 			case 'lesson':
@@ -380,6 +499,11 @@ function screenstepslive_createTemplatePage($type) {
 										'{{SCREENSTEPSLIVE_LINK_TO_PREV_LESSON text="Previous Lesson: {{SCREENSTEPSLIVE_PREV_LESSON_TITLE}}"}}' . "\n" .
 										'{{SCREENSTEPSLIVE_LINK_TO_NEXT_LESSON text="Next Lesson: {{SCREENSTEPSLIVE_NEXT_LESSON_TITLE}}"}}' . "\n" .
 										'<a href="{{SCREENSTEPSLIVE_LINK_TO_MANUAL}}">Return to Manual</a>';
+				break;
+			case 'bucket lesson':
+				$post['post_title'] = '{{SCREENSTEPSLIVE_LESSON_TITLE}}';
+				$post['post_content'] = '{{SCREENSTEPSLIVE_CONTENT}}' . "\n" .
+										'<a href="{{SCREENSTEPSLIVE_LINK_TO_BUCKET}}">Return to Lesson Bucket</a>';
 				break;
 		}
 		
