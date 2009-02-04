@@ -1,6 +1,6 @@
 <?php
 
-// Version 0.9.0.4
+// Version 0.9.1.1
 
 // You need to get this from PEAR
 // http://pear.php.net/package/Crypt_HMAC
@@ -55,6 +55,13 @@ class SSLiveAPI {
 		$this->auth['username'] = $username;
 		$this->auth['type'] = 'username/password';
 		$this->auth['token'] = '';
+	}
+	
+	function CleanseID($id) {
+		if (!preg_match('/^[a-zA-Z][a-zA-Z0-9_\-]+$/', $id))
+			return abs(intval($id));
+		else
+			return $id;
 	}
 	
 	function GetSpaces() {

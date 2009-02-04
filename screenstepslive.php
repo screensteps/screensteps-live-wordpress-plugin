@@ -61,32 +61,32 @@ function screenstepslive_parseTitle($the_title) {
 	if (strpos($the_title, '{{SCREENSTEPSLIVE_SPACE_TITLE}}') !== FALSE ) {
 		$sslivewp = screenstepslive_initializeObject();
 				
-		$space_id = intval($_GET['space_id']);
+		$space_id = $sslivewp->CleanseID($_GET['space_id']);
 		if ($space_id > 0)
 			$the_title = preg_replace('/{{SCREENSTEPSLIVE_SPACE_TITLE}}/i', $sslivewp->GetSpaceTitle($space_id), $the_title);
 		
 	} else if (strpos($the_title, '{{SCREENSTEPSLIVE_MANUAL_TITLE}}') !== FALSE ) {
 		$sslivewp = screenstepslive_initializeObject();
 		
-		$space_id = intval($_GET['space_id']);
-		$manual_id = intval($_GET['manual_id']);
+		$space_id = $sslivewp->CleanseID($_GET['space_id']);
+		$manual_id = $sslivewp->CleanseID($_GET['manual_id']);
 		if ($manual_id > 0)
 			$the_title = preg_replace('/{{SCREENSTEPSLIVE_MANUAL_TITLE}}/i', $sslivewp->GetManualTitle($space_id, $manual_id), $the_title);
 			
 	} else if (strpos($the_title, '{{SCREENSTEPSLIVE_BUCKET_TITLE}}') !== FALSE ) {
 		$sslivewp = screenstepslive_initializeObject();
 		
-		$space_id = intval($_GET['space_id']);
-		$bucket_id = intval($_GET['bucket_id']);
+		$space_id = $sslivewp->CleanseID($_GET['space_id']);
+		$bucket_id = $sslivewp->CleanseID($_GET['bucket_id']);
 		if ($bucket_id > 0)
 			$the_title = preg_replace('/{{SCREENSTEPSLIVE_BUCKET_TITLE}}/i', $sslivewp->GetBucketTitle($space_id, $bucket_id), $the_title);
 		
 	} else if (strpos($the_title, '{{SCREENSTEPSLIVE_LESSON_TITLE}}') !== FALSE ) {
 		$sslivewp = screenstepslive_initializeObject();
-		$space_id = intval($_GET['space_id']);
-		$manual_id = intval($_GET['manual_id']);
-		$bucket_id = intval($_GET['bucket_id']);
-		$lesson_id = intval($_GET['lesson_id']);
+		$space_id = $sslivewp->CleanseID($_GET['space_id']);
+		$manual_id = $sslivewp->CleanseID($_GET['manual_id']);
+		$bucket_id = $sslivewp->CleanseID($_GET['bucket_id']);
+		$lesson_id = $sslivewp->CleanseID($_GET['lesson_id']);
 		if ($manual_id > 0 && $lesson_id > 0)
 			$the_title = preg_replace('/{{SCREENSTEPSLIVE_LESSON_TITLE}}/i', $sslivewp->GetManualLessonTitle($space_id, $manual_id, $lesson_id), $the_title);
 		else if ($bucket_id > 0 && $lesson_id > 0)
@@ -103,13 +103,13 @@ function screenstepslive_parseContent($the_content)
 	if (stristr($the_content, '{{SCREENSTEPSLIVE_CONTENT}}') !== FALSE) {
 		$text = '';
 		
-		$space_id = intval($_GET['space_id']);
-		$bucket_id = intval($_GET['bucket_id']);
-		$manual_id = intval($_GET['manual_id']);
-		$lesson_id = intval($_GET['lesson_id']);
-				
 		// Include necessary SS Live files
 		$sslivewp = screenstepslive_initializeObject();
+		
+		$space_id = $sslivewp->CleanseID($_GET['space_id']);
+		$bucket_id = $sslivewp->CleanseID($_GET['bucket_id']);
+		$manual_id = $sslivewp->CleanseID($_GET['manual_id']);
+		$lesson_id = $sslivewp->CleanseID($_GET['lesson_id']);
 		
 		if (!$space_id > 0)
 		{
@@ -426,7 +426,7 @@ END;
 			
 			foreach ($array['space'] as $key => $space) {
 				// Determine initial state for visible checkbox and permission settings.
-				$space_id = intval($space['id']); // arrays don't like object props as key refs
+				$space_id = $sslivewp->CleanseID($space['id']); // arrays don't like object props as key refs
 				$checked = ($spaces_settings[$space_id] != '') ? ' checked' : '';
 				$private_option = '';
 				$public_option = '';
