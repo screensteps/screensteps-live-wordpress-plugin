@@ -25,12 +25,12 @@ class SSLiveWordPress extends SSLiveAPI {
 	var $arrays = array();
 	
 	// PHP 4
-	function SSLiveWordPress($domain, $api_key, $protocol='http') {
-		$this->__construct($domain, $api_key, $protocol);
+	function SSLiveWordPress($domain, $protocol='http') {
+		$this->__construct($domain, $protocol);
 	}
 	
 	// Constructor
-	function __construct ($domain, $api_key, $protocol='http') {		
+	function __construct ($domain, $protocol='http') {		
 		// Cache
 		$this->arrays['spaces'] = NULL;
 		$this->arrays['space'] = NULL;
@@ -39,7 +39,7 @@ class SSLiveWordPress extends SSLiveAPI {
 		$this->arrays['lesson'] = NULL;
 		
 		// Initialize parent
-		parent::__construct($domain, $api_key, $protocol);
+		parent::__construct($domain, $protocol);
 	}
 	
 	function __destruct() {

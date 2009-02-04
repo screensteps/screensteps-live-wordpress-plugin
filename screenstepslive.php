@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 0.9.3
+Version: 0.9.5
 Author: Trevor DeVore
 Author URI: http://www.screensteps.com
 */
@@ -26,19 +26,20 @@ function screenstepslive_initializeObject()
 	
 	if (!$screenstepslivewp) {
 		// PROVIDE EXAMPLE SETTINGS AS DEFAULT
-		if (get_option('screenstepslive_domain') == '' && get_option('screenstepslive_api_key') == '') {
+		if (get_option('screenstepslive_domain') == '' && get_option('screenstepslive_reader_name') == '') {
 			update_option('screenstepslive_domain', 'example.screenstepslive.com');
-			update_option('screenstepslive_api_key', '12e5317e88');
+			update_option('screenstepslive_reader_name', 'example');
+			update_option('screenstepslive_reader_password', 'example');
 			update_option('screenstepslive_protocol', 'http');
 		}
 		
 		require_once(dirname(__FILE__) . '/sslivewordpress_class.php');
 		
 		// Create ScreenSteps Live object using your domain and API key
-		$screenstepslivewp = new SSLiveWordPress(get_option('screenstepslive_domain'), 
-										get_option('screenstepslive_api_key'), 
+		$screenstepslivewp = new SSLiveWordPress(get_option('screenstepslive_domain'),
 										get_option('screenstepslive_protocol'));
-		$screenstepslivewp->show_protected = true;
+		$screenstepslivewp->SetUserCredentials(get_option('screenstepslive_reader_name'), get_option('screenstepslive_reader_password'));
+		//$screenstepslivewp->show_protected = true;
 		$screenstepslivewp->spaces_settings = get_option('screenstepslive_spaces_settings');
 		//$screenstepslivewp->manual_settings = get_option('screenstepslive_manual_settings');
 		$screenstepslivewp->user_can_read_private = current_user_can('read_private_posts') == 1;
@@ -163,7 +164,6 @@ function screenstepslive_parseContent($the_content)
 
 		} else {
 			$text = $sslivewp->GetSpaceList($space_id);
-			
 			$the_content = preg_replace('/{{SCREENSTEPSLIVE_LINK_TO_SPACES_INDEX}}/i', $sslivewp->GetLinkToSpacesIndex(), $the_content);
 			$the_content = preg_replace('/{{SCREENSTEPSLIVE_SPACE_TITLE}}/i', $sslivewp->GetSpaceTitle($space_id), $the_content);
 		}
@@ -209,8 +209,12 @@ function screenstepslive_optionPage()
 	// API form was submitted
 	if ($_POST['api_submitted'] == 1) {
 		update_option('screenstepslive_domain', $_POST['domain']);
-		update_option('screenstepslive_api_key', $_POST['api_key']);
+		update_option('screenstepslive_reader_name', $_POST['reader_name']);
+		update_option('screenstepslive_reader_password', $_POST['reader_password']);
 		update_option('screenstepslive_protocol', $_POST['protocol']);
+		
+		$sslivewp->SetUserCredentials($_POST['reader_name'], $_POST['reader_password']);
+		$sslivewp->protocol = $_POST['protocol'];
 	}
 	
 	if ($_POST['post_ids_submitted'] == 1) {
@@ -291,7 +295,7 @@ function screenstepslive_optionPage()
 		}
 	}
 	
-	// UI			
+	// UI	
 echo <<<END
 <div class="wrap">
 	<h2>ScreenSteps Live</h2>
@@ -309,8 +313,13 @@ END;
 			print ('<table class="optiontable form-table">');
 			print ('<tr><th scope="row" style="width:200px;">ScreenSteps Live Domain:</th><td>' . 
 					'<input type="text" name="domain" id="domain" style="width:20em;" value="'. get_option('screenstepslive_domain') . '"></td></tr>');
-			print ('<tr><th scope="row">ScreenSteps Live API Key:</th><td>' . 
+			/*print ('<tr><th scope="row">ScreenSteps Live API Key:</th><td>' . 
 					'<input type="text" name="api_key" id="api_key" value="'. get_option('screenstepslive_api_key') . '"></td></tr>');
+			*/
+			print ('<tr><th scope="row">ScreenSteps Live Reader Account username:</th><td>' . 
+					'<input type="text" name="reader_name" id="reader_name" value="'. get_option('screenstepslive_reader_name') . '"></td></tr>');
+			print ('<tr><th scope="row">ScreenSteps Live Reader Account password:</th><td>' . 
+					'<input type="password" name="reader_password" id="reader_password" value="'. get_option('screenstepslive_reader_password') . '"></td></tr>');
 			print ('<tr><th scope="row">Protocol:</th><td>' . 
 					'<select name="protocol"><option value="http"'. $http_option . '">HTTP</option>' . 
 					'<option value="https"'. $https_option . '">HTTPS</option></select>' .
@@ -447,7 +456,7 @@ END;
 
 		}
 	} else {
-		print ("<div>Error:" . $this->last_error . "</div>\n");
+		print ("<div>Error:" . $sslivewp->last_error . "</div>\n");
 	}
 
 echo <<<END
@@ -478,19 +487,20 @@ function screenstepslive_createTemplatePage($type) {
 			
 			case 'space':
 				$post['post_title'] = '{{SCREENSTEPSLIVE_SPACE_TITLE}}';
-				$post['post_content'] = '{{SCREENSTEPSLIVE_CONTENT}}';
+				$post['post_content'] = '{{SCREENSTEPSLIVE_CONTENT}}' . "\n" .
+										'<a href="{{SCREENSTEPSLIVE_LINK_TO_SPACES_INDEX}}">Return to spaces</a>';
 				break;
 				
 			case 'manual':
 				$post['post_title'] = '{{SCREENSTEPSLIVE_MANUAL_TITLE}}';
 				$post['post_content'] = '{{SCREENSTEPSLIVE_CONTENT}}' . "\n" .
-										'<a href="{{SCREENSTEPSLIVE_LINK_TO_SPACE}}">Return to index</a>';
+										'<a href="{{SCREENSTEPSLIVE_LINK_TO_SPACE}}">Return to space</a>';
 				break;
 			
 			case 'bucket':
 				$post['post_title'] = '{{SCREENSTEPSLIVE_BUCKET_TITLE}}';
 				$post['post_content'] = '{{SCREENSTEPSLIVE_CONTENT}}' . "\n" .
-										'<a href="{{SCREENSTEPSLIVE_LINK_TO_SPACE}}">Return to index</a>';
+										'<a href="{{SCREENSTEPSLIVE_LINK_TO_SPACE}}">Return to space</a>';
 				break;
 				
 			case 'lesson':
