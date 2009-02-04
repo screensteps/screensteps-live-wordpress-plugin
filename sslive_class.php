@@ -48,7 +48,6 @@ class SSLiveAPI {
 		$this->auth['username'] = '';
 		$this->auth['type'] = 'api key';
 		$this->auth['token'] = '';
-		//$this->auth['expires'] = '';
 	}
 	
 	function SetUserCredentials($username, $password) {
@@ -56,7 +55,6 @@ class SSLiveAPI {
 		$this->auth['username'] = $username;
 		$this->auth['type'] = 'username/password';
 		$this->auth['token'] = '';
-		//$this->auth['expires'] = '';
 	}
 	
 	function GetSpaces() {
