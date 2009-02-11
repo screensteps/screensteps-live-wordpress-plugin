@@ -48,35 +48,35 @@ class SSLiveWordPress extends SSLiveAPI {
 	
 	// PUBLIC
 	
-	function GetLinkToSpacesIndex() {
-		return $this->GetLinkToWordPressPage($this->spaces_index_post_id, false);
+	function GetLinkToSpacesIndex($post_id) {
+		return $this->GetLinkToWordPressPage($post_id, false);
 	}
 	
-	function GetLinkToSpace($space_id) {
-		$link_to_space = $this->GetLinkToWordPressPage($this->space_post_id);
+	function GetLinkToSpace($post_id, $space_id) {
+		$link_to_space = $this->GetLinkToWordPressPage($post_id);
 		return $link_to_space . 'space_id=' . $space_id;
 	}	
 	
-	function GetLinkToManual($space_id, $manual_id) {
-		$link_to_manual = $this->GetLinkToWordPressPage($this->manual_post_id);
+	function GetLinkToManual($post_id, $space_id, $manual_id) {
+		$link_to_manual = $this->GetLinkToWordPressPage($post_id);
 		return $link_to_manual . 'space_id=' . $space_id . '&manual_id=' . $manual_id;
 	}
 	
 	
-	function GetLinkToManualLesson($space_id, $manual_id, $lesson_id) {
-		$link_to_lesson = $this->GetLinkToWordPressPage($this->lesson_post_id);
+	function GetLinkToManualLesson($post_id, $space_id, $manual_id, $lesson_id) {
+		$link_to_lesson = $this->GetLinkToWordPressPage($post_id);
 		return $link_to_lesson . 'space_id=' . $space_id . '&manual_id=' . $manual_id . '&lesson_id=' . $lesson_id;
 	}
 	
 	
-	function GetLinkToBucketLesson($space_id, $bucket_id, $lesson_id) {
-		$link_to_lesson = $this->GetLinkToWordPressPage($this->bucket_lesson_post_id);
+	function GetLinkToBucketLesson($post_id, $space_id, $bucket_id, $lesson_id) {
+		$link_to_lesson = $this->GetLinkToWordPressPage($post_id);
 		return $link_to_lesson . 'space_id=' . $space_id . '&bucket_id=' . $bucket_id . '&lesson_id=' . $lesson_id;
 	}
 	
 	
-	function GetLinkToBucket($space_id, $bucket_id) {
-		$link_to_bucket = $this->GetLinkToWordPressPage($this->bucket_post_id);
+	function GetLinkToBucket($post_id, $space_id, $bucket_id) {
+		$link_to_bucket = $this->GetLinkToWordPressPage($post_id);
 		return $link_to_bucket . 'space_id=' . $space_id . '&bucket_id=' . $bucket_id;
 	}
 	
@@ -146,7 +146,7 @@ class SSLiveWordPress extends SSLiveAPI {
 	}
 	
 	
-	function GetLinkToPrevLesson($space_id, $type, $manual_id, $lesson_id, $text) {
+	function GetLinkToPrevLesson($post_id, $space_id, $type, $manual_id, $lesson_id, $text) {
 		$link = '';
 		
 		if ($type == 'manual') {
@@ -155,7 +155,7 @@ class SSLiveWordPress extends SSLiveAPI {
 			if ($this->arrays['lesson']) {		
 				$prevLessonID = intval($this->arrays['lesson']['manual']['previous_lesson']['id']);
 				if ($prevLessonID > 0) {
-					$link_to_lesson = $this->GetLinkToManualLesson($space_id, $manual_id, $prevLessonID);
+					$link_to_lesson = $this->GetLinkToManualLesson($post_id, $space_id, $manual_id, $prevLessonID);
 					$link .= ('<a href="' . $link_to_lesson . '">' . $text . "</a>");
 				}
 			}
@@ -180,7 +180,7 @@ class SSLiveWordPress extends SSLiveAPI {
 	}
 	
 	
-	function GetLinkToNextLesson($space_id, $type, $manual_id, $lesson_id, $text) {
+	function GetLinkToNextLesson($post_id, $space_id, $type, $manual_id, $lesson_id, $text) {
 		$link = '';
 		
 		if ($type == 'manual') {
@@ -189,7 +189,7 @@ class SSLiveWordPress extends SSLiveAPI {
 			if ($this->arrays['lesson']) {
 				$nextLessonID = intval($this->arrays['lesson']['manual']['next_lesson']['id']);
 				if ($nextLessonID > 0) {
-					$link_to_lesson = $this->GetLinkToManualLesson($space_id, $manual_id, $nextLessonID);
+					$link_to_lesson = $this->GetLinkToManualLesson($post_id, $space_id, $manual_id, $nextLessonID);
 					$link .= ('<a href="' . $link_to_lesson . '">' . $text . "</a>");
 				}
 			}
@@ -214,7 +214,7 @@ class SSLiveWordPress extends SSLiveAPI {
 	}
 	
 	
-	function GetSpacesList() {
+	function GetSpacesList($post_id) {
 		$text = '';
 		$spaces = array();
 		
@@ -226,7 +226,7 @@ class SSLiveWordPress extends SSLiveAPI {
 			if (count($spaces) == 0) {
 				$text .= "<p>No spaces found.</p>";
 			} else {
-				$link_to_space = $this->GetLinkToWordPressPage($this->space_post_id);
+				$link_to_space = $this->GetLinkToWordPressPage($post_id);
 				
 				print ("<ul>\n");
 				foreach ($spaces as $key => $space) {
@@ -246,7 +246,7 @@ class SSLiveWordPress extends SSLiveAPI {
 		return $text;
 	}
 	
-	function GetSpaceList($space_id) {
+	function GetSpaceList($post_id, $space_id) {
 		$text = '';
 		
 		// Validate that user can view this manual
@@ -262,12 +262,12 @@ class SSLiveWordPress extends SSLiveAPI {
 					foreach ($array['assets']['asset'] as $asset) {
 						if (strtolower($asset['type']) == 'manual')
 						{
-							$link_to_page = $this->GetLinkToManual($space_id, $asset['id']);
+							$link_to_page = $this->GetLinkToManual($post_id, $space_id, $asset['id']);
 							$text .= ('<li><a href="' . $link_to_page . '">' . $asset['title'] . "</a></li>\n");
 						}
 						else
 						{
-							$link_to_page = $this->GetLinkToBucket($space_id, $asset['id']);
+							$link_to_page = $this->GetLinkToBucket($post_id, $space_id, $asset['id']);
 							$text .= ('<li><a href="' . $link_to_page . '">' . $asset['title'] . "</a></li>\n");
 						}							
 					}
@@ -284,7 +284,7 @@ class SSLiveWordPress extends SSLiveAPI {
 		return $text;
 	}
 	
-	function GetManualList($space_id, $manual_id) {
+	function GetManualList($post_id, $space_id, $manual_id) {
 		$text = '';
 		
 		// Validate that user can view this manual
@@ -303,7 +303,7 @@ class SSLiveWordPress extends SSLiveAPI {
 							$text .= ("<ul>\n");
 							foreach ($chapter['lessons']['lesson'] as $key => $lesson) {
 								$lessonID = intval($lesson['id']);
-								$link_to_lesson = $this->GetLinkToManualLesson($space_id, $manual_id, $lessonID);
+								$link_to_lesson = $this->GetLinkToManualLesson($post_id, $space_id, $manual_id, $lessonID);
 								
 								$text .= ('<li><a href="' . $link_to_lesson . '">' . $lesson['title'] . "</a></li>\n");
 							}
@@ -322,7 +322,7 @@ class SSLiveWordPress extends SSLiveAPI {
 		return $text;
 	}
 	
-	function GetBucketList($space_id, $bucket_id) {
+	function GetBucketList($post_id, $space_id, $bucket_id) {
 		$text = '';
 		
 		// Validate that user can view this manual
@@ -337,7 +337,7 @@ class SSLiveWordPress extends SSLiveAPI {
 					$text .= ("<ul>\n");
 					foreach ($array['lessons']['lesson'] as $key => $lesson) {						
 						$lessonID = intval($lesson['id']);
-						$link_to_lesson = $this->GetLinkToBucketLesson($space_id, $bucket_id, $lessonID);
+						$link_to_lesson = $this->GetLinkToBucketLesson($post_id, $space_id, $bucket_id, $lessonID);
 						
 						$text .= ('<li><a href="' . $link_to_lesson . '">' . $lesson['title'] . "</a></li>\n");
 					}
@@ -465,6 +465,7 @@ class SSLiveWordPress extends SSLiveAPI {
 	}
 	
 	function UserCanViewSpace($permission_setting) {
+		return true;
 		return ($permission_setting == 'everyone' || ($permission_setting == 'public' && !$this->user_can_read_private) || ($permission_setting == 'private' && $this->user_can_read_private));
 	}
 }
