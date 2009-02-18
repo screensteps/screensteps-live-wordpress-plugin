@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 0.9.6
+Version: 0.9.8
 Author: Blue Mango Learning Systems
 Author URI: http://www.screensteps.com
 */
@@ -16,8 +16,8 @@ $screenstepslivewp = NULL;
 
 // This plugin processes content of all posts
 add_filter('the_content', 'screenstepslive_parseContent', 100);
-add_filter('the_title', 'screenstepslive_parseTitle', 100, 3);
-//add_filter('wp_list_pages', 'screenstepslive_listPages', 100);
+add_filter('the_title', 'screenstepslive_parseTitle', 100);
+add_filter('wp_list_pages', 'screenstepslive_listPages', 100);
 add_filter('delete_post', 'screenstepslive_checkIfDeletedPostIsReferenced', 100);
 add_action('admin_menu', 'screenstepslive_addPages');
 
@@ -65,7 +65,28 @@ function screenstepslive_initializeObject()
 
 
 function screenstepslive_listPages($the_output) {
-	return ($the_output);
+	// We remove the link to the current SS Live page from the list. It's $title will be rewritten
+	// by screenstepslive_parseTitle and since WordPress has one filter for ALL titles we don't have
+	// a lot of options.
+	
+	$post = &get_post();
+			
+	// Find settings for this page
+	$pages = get_option('screenstepslive_pages');
+	
+	foreach ($pages as $page_id => $value) {
+		if ($page_id == $post->ID) {
+			$page = $value;
+			break;
+		}
+	}
+		
+	// Get out if we have nothing to offer.
+	if (!isset($page)) return ($the_output);
+
+	$theNewOutput = preg_replace('/\<li.*\>' . preg_quote($post->post_title, "/") . '\<.*?\/li\>/', '', $the_output, -1, $count);
+	if ($count > 0) return $theNewOutput;
+	else return ($the_output);
 }
 
 
