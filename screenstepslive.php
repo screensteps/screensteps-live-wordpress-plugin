@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 0.9.8
+Version: 0.9.9
 Author: Blue Mango Learning Systems
 Author URI: http://www.screensteps.com
 */
@@ -440,66 +440,68 @@ END;
 					$manauls = array();
 					$buckets = array();
 					
-					foreach ($pages as $key => $page) {
-						$i = $page['id'];
-						print ('<tr>' . "\n");
-							// Page id column
-							print ('<td width="30px">');
-								print ('<input type="hidden" name="pages[' . $i . '][id]" id="page_' . $i . '"' . 'value="'. $page['id'] . '"/>' . $page['id']);
-							print ('</td>' . "\n");
-							
-							// Spaces select menu column
-							if (count($spaces['space']) > 0) {
-								print ('<td><select name="pages[' . $i . '][space_id]' . '">');
-								foreach ($spaces['space'] as $key => $space) {
-									// Determine initial state for visible checkbox and permission settings.
-									if ($space['id'] == $page['space_id']) {
-										print '<option value="' . $space['id'] . '" selected="selected">' . $space['title'] . '</option>';
-									} else {
-										print '<option value="' . $space['id'] . '">' . $space['title'] . '</option>';
-									}
-								}
-								print('</select></td>' . "\n");
-							} else {
-								print ('<td>None</td>' . "\n");
-							}						
-							
-							// Manual select menu column
-							if ($page['space_id'] > 0) {
-								if (!isset($manuals[ $page['space_id'] ])) {
-									$space = $sslivewp->GetSpace($page['space_id']);
-									foreach ($space['assets']['asset'] as $asset) {
-										if (strtolower($asset['type']) == 'manual') {
-											$manuals[ $page['space_id'] ][] = array('id'=>$asset['id'], 'title'=>$asset['title']);
-										} elseif (strtolower($asset['type']) == 'bucket') {
-											$buckets[ $page['space_id'] ][] = array('id'=>$asset['id'], 'title'=>$asset['title']);
-										}
-									}
-								}
-
-								if (count($manuals[ $page['space_id'] ]) > 0) {
-									print ('<td><select name="pages[' . $i . '][resource_id]' . '">');
-										print ('<option value="0">None</option>');
-									foreach ($manuals[ $page['space_id'] ] as $manual) {
+					if (is_array($pages) ) {
+						foreach ($pages as $key => $page) {
+							$i = $page['id'];
+							print ('<tr>' . "\n");
+								// Page id column
+								print ('<td width="30px">');
+									print ('<input type="hidden" name="pages[' . $i . '][id]" id="page_' . $i . '"' . 'value="'. $page['id'] . '"/>' . $page['id']);
+								print ('</td>' . "\n");
+								
+								// Spaces select menu column
+								if (count($spaces['space']) > 0) {
+									print ('<td><select name="pages[' . $i . '][space_id]' . '">');
+									foreach ($spaces['space'] as $key => $space) {
 										// Determine initial state for visible checkbox and permission settings.
-										if ($manual['id'] == $page['resource_id']) {
-											print '<option value="' . $manual['id'] . '" selected="selected">' . $manual['title'] . '</option>';
+										if ($space['id'] == $page['space_id']) {
+											print '<option value="' . $space['id'] . '" selected="selected">' . $space['title'] . '</option>';
 										} else {
-											print '<option value="' . $manual['id'] . '">' . $manual['title'] . '</option>';
+											print '<option value="' . $space['id'] . '">' . $space['title'] . '</option>';
 										}
 									}
 									print('</select></td>' . "\n");
 								} else {
+									print ('<td>None</td>' . "\n");
+								}						
+								
+								// Manual select menu column
+								if ($page['space_id'] > 0) {
+									if (!isset($manuals[ $page['space_id'] ])) {
+										$space = $sslivewp->GetSpace($page['space_id']);
+										foreach ($space['assets']['asset'] as $asset) {
+											if (strtolower($asset['type']) == 'manual') {
+												$manuals[ $page['space_id'] ][] = array('id'=>$asset['id'], 'title'=>$asset['title']);
+											} elseif (strtolower($asset['type']) == 'bucket') {
+												$buckets[ $page['space_id'] ][] = array('id'=>$asset['id'], 'title'=>$asset['title']);
+											}
+										}
+									}
+	
+									if (count($manuals[ $page['space_id'] ]) > 0) {
+										print ('<td><select name="pages[' . $i . '][resource_id]' . '">');
+											print ('<option value="0">None</option>');
+										foreach ($manuals[ $page['space_id'] ] as $manual) {
+											// Determine initial state for visible checkbox and permission settings.
+											if ($manual['id'] == $page['resource_id']) {
+												print '<option value="' . $manual['id'] . '" selected="selected">' . $manual['title'] . '</option>';
+											} else {
+												print '<option value="' . $manual['id'] . '">' . $manual['title'] . '</option>';
+											}
+										}
+										print('</select></td>' . "\n");
+									} else {
+										print ('<input type="hidden" name="pages[' . $i . '][resource_id]" value="0" />');
+										print ('<td>No manuals in space</td>' . "\n");
+									}		
+	
+								} else {
 									print ('<input type="hidden" name="pages[' . $i . '][resource_id]" value="0" />');
-									print ('<td>No manuals in space</td>' . "\n");
-								}		
-
-							} else {
-								print ('<input type="hidden" name="pages[' . $i . '][resource_id]" value="0" />');
-								print ('<td>None</td>' . "\n");
-							}
-							
-						print ('</tr>' . "\n");
+									print ('<td>None</td>' . "\n");
+								}
+								
+							print ('</tr>' . "\n");
+						}
 					}
 					
 						print ('<tr><td colspan="3">');
