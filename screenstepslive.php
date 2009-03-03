@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 0.9.9
+Version: 0.9.10
 Author: Blue Mango Learning Systems
 Author URI: http://www.screensteps.com
 */
@@ -68,8 +68,7 @@ function screenstepslive_listPages($the_output) {
 	// We remove the link to the current SS Live page from the list. It's $title will be rewritten
 	// by screenstepslive_parseTitle and since WordPress has one filter for ALL titles we don't have
 	// a lot of options.
-	
-	$post = &get_post();
+	$post = &get_post(the_ID());
 			
 	// Find settings for this page
 	$pages = get_option('screenstepslive_pages');
@@ -93,7 +92,7 @@ function screenstepslive_listPages($the_output) {
 function screenstepslive_parseTitle($the_title) {
 	if (!is_page( $the_title)) return ($the_title); // cursed wp_list_pages calls this as well.
 	
-	$post = &get_post();
+	$post = &get_post(the_ID());
 			
 	// Find settings for this page
 	$pages = get_option('screenstepslive_pages');
@@ -190,8 +189,7 @@ function screenstepslive_parseTitle($the_title) {
 // Called by WordPress to process content
 function screenstepslive_parseContent($the_content)
 {	
-
-	$post = &get_post();
+	$post = &get_post(the_ID());
 
 	if (stristr($the_content, '{{SCREENSTEPSLIVE_CONTENT}}') !== FALSE) {
 		$text = '';
