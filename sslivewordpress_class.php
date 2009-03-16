@@ -180,19 +180,28 @@ class SSLiveWordPress extends SSLiveAPI {
 	}
 	
 	
-	function GetLinkToNextLesson($post_id, $space_id, $type, $manual_id, $lesson_id, $text) {
+	function GetLinkToNextLesson($post_id, $space_id, $type, $type_id, $lesson_id, $text) {
 		$link = '';
 		
 		if ($type == 'manual') {
-			$this->CacheManualLesson($space_id, $manual_id, $lesson_id);
+			$this->CacheManualLesson($space_id, $type_id, $lesson_id);
 			
 			if ($this->arrays['lesson']) {
 				$nextLessonID = intval($this->arrays['lesson']['manual']['next_lesson']['id']);
 				if ($nextLessonID > 0) {
-					$link_to_lesson = $this->GetLinkToManualLesson($post_id, $space_id, $manual_id, $nextLessonID);
+					$link_to_lesson = $this->GetLinkToManualLesson($post_id, $space_id, $type_id, $nextLessonID);
 					$link .= ('<a href="' . $link_to_lesson . '">' . $text . "</a>");
 				}
 			}
+		} else {
+			/*$this->CacheBucketLesson($space_id, $type_id, $lesson_id);
+			if ($this->arrays['lesson']) {
+				$nextLessonID = intval($this->arrays['lesson']['manual']['next_lesson']['id']);
+				if ($nextLessonID > 0) {
+					$link_to_lesson = $this->GetLinkToManualLesson($post_id, $space_id, $type_id, $nextLessonID);
+					$link .= ('<a href="' . $link_to_lesson . '">' . $text . "</a>");
+				}
+			}*/
 		}
 		return $link;
 	}
@@ -381,8 +390,8 @@ class SSLiveWordPress extends SSLiveAPI {
 						foreach ($array['steps']['step'] as $key => $step) {
 							$text .= ('<h3>' . $step['title'] . "</h3>\n");
 							$text .= ('<p>' . $step['instructions'] . "</p>\n");
-							$text .= ('<p><img src="' . $step['media'][0]['url'] . 
-								'" width="' . $step['media'][0]['width'] . '" height="' . $step['media'][0]['height'] . '" />' . "\n");
+							$text .= ('<div class="screenstepslive_image"><img src="' . $step['media'][0]['url'] . 
+								'" width="' . $step['media'][0]['width'] . '" height="' . $step['media'][0]['height'] . '" /></div>' . "\n");
 							$text .= ('<p></p>' . "\n");
 						}
 					}
