@@ -1,0 +1,23 @@
+div.screenstepslive_navigation {
+	margin-top: 10px;
+	border-top: 1px solid #ccc;
+	border-bottom: 1px solid #ccc;
+	padding: 3px 0;
+}
+
+div.screenstepslive_navigation div.alignleft {
+	float: left;
+}
+
+div.screenstepslive_navigation div.alignright {
+	float: right;
+}
+
+div.screenstepslive div.screenstepslive_image img {
+	padding: 3px;
+	border: 1px solid #ccc;
+}
+
+div.screenstepslive_nav_bottom {
+	clear: both;
+}
