@@ -53,7 +53,8 @@ function screenstepslive_initializeObject()
 
 
 function screenstepslive_addHeader() {
-	echo '<link type="text/css" rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-content/plugins/screenstepslive/css/screenstepslive.css" />' . "\n";
+	$plugin_folder = basename(dirname(__FILE__));
+	echo '<link type="text/css" rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-content/plugins/' . $plugin_folder . '/css/screenstepslive.css" />' . "\n";
 }
 
 
