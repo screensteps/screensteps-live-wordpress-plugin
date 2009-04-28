@@ -92,11 +92,11 @@ function screenstepslive_listPages($the_output) {
 	
 	
 	// What has this page been renamed too?
-	if (!$space_id > 0)
+	if (empty($space_id))
 	{
 		// nothing to do	
-	}  else if ($space_id > 0 && $lesson_id > 0) {
-		if ($manual_id > 0) {
+	}  else if (!empty($space_id) && !empty($lesson_id)) {
+		if (!empty($manual_id)) {
 			if ($page['resource_id'] == 0)
 			{
 				// Page is a 'space' page.
@@ -108,7 +108,7 @@ function screenstepslive_listPages($the_output) {
 				// Page is a 'manual' page.
 				$the_title = $sslivewp->GetManualLessonTitle($space_id, $manual_id, $lesson_id);		
 			}
-		} else if ($bucket_id > 0) {
+		} else if (!empty($bucket_id)) {
 			if ($page['resource_id'] == 0)
 			{
 				// Page is a 'space' page.
@@ -122,7 +122,7 @@ function screenstepslive_listPages($the_output) {
 			}
 		}
 			
-	} else if ($space_id > 0 && $manual_id > 0) {
+	} else if (!empty($space_id) && !empty($manual_id)) {
 		if ($page['resource_id'] == 0)
 		{
 			// Page is a 'space' page.
@@ -133,7 +133,7 @@ function screenstepslive_listPages($the_output) {
 			// Nothing to do.
 		}
 		
-	} else if ($space_id > 0 && $bucket_id > 0) {		
+	} else if (!empty($space_id) && !empty($bucket_id)) {		
 		if ($page['resource_id'] == 0)
 		{
 			// Page is a 'space' page.
@@ -161,7 +161,7 @@ function screenstepslive_listPages($the_output) {
 
 function screenstepslive_parseTitle($the_title) {
 	if (!is_page( $the_title)) return ($the_title); // cursed wp_list_pages calls this as well.
-	
+		
 	$postID = get_the_ID();
 	$post = &get_post($postID);
 				
@@ -189,8 +189,7 @@ function screenstepslive_parseTitle($the_title) {
 	else if ($page['resource_type'] == 'manual' && $page['resource_id'] > 0)
 		$manual_id = $page['resource_id'];
 	$lesson_id = $sslivewp->CleanseID($_GET['lesson_id']);
-	
-	
+		
 	if (empty($space_id))
 	{
 		// nothing to do	
@@ -198,25 +197,25 @@ function screenstepslive_parseTitle($the_title) {
 		if (!empty($manual_id)) {
 			if ($page['resource_id'] == 0)
 			{
-				// Page is a 'space' page.
+				// Default page is a space.
 				$the_title = '<a href="' . $sslivewp->GetLinkToManual($post->ID, $space_id, $manual_id) . '">' . 
 								$sslivewp->GetManualTitle($space_id, $manual_id) . '</a>: ' .
 							$sslivewp->GetManualLessonTitle($space_id, $manual_id, $lesson_id);		
 			} else
 			{
-				// Page is a 'manual' page.
+				// Default page is a manual.
 				$the_title = $sslivewp->GetManualLessonTitle($space_id, $manual_id, $lesson_id);		
 			}
 		} else if (!empty($bucket_id)) {
 			if ($page['resource_id'] == 0)
 			{
-				// Page is a 'space' page.
+				// Default page is a space.
 				$the_title = '<a href="' . $sslivewp->GetLinkToBucket($post->ID, $space_id, $bucket_id) . '">' . 
 								$sslivewp->GetBucketTitle($space_id, $bucket_id) . '</a>: ' .
 							$sslivewp->GetBucketLessonTitle($space_id, $bucket_id, $lesson_id);		
 			} else
 			{
-				// Page is a 'manual' page.
+				// Default page is a bucket.
 				$the_title = $sslivewp->GetBucketLessonTitle($space_id, $bucket_id, $lesson_id);		
 			}
 		}
@@ -224,25 +223,21 @@ function screenstepslive_parseTitle($the_title) {
 	} else if (!empty($space_id) && !empty($manual_id)) {
 		if ($page['resource_id'] == 0)
 		{
-			// Page is a 'space' page.
-			/*$the_title = '<a href="' . $sslivewp->GetLinkToSpace($post->ID, $space_id) . '">' . $post->post_title . '</a>:<br/> ' . 
-						$sslivewp->GetManualTitle($space_id, $manual_id);*/
+			// Default page is a space. Get manual title.
 			$the_title = $sslivewp->GetManualTitle($space_id, $manual_id);	
 		} else
 		{
-			// Page is a 'manual' page.
-			// Nothing to do.
+			// Default page is a manual. Nothing to do.
 		}
 		
 	} else if (!empty($space_id) && !empty($bucket_id)) {
 		if ($page['resource_id'] == 0)
 		{
-			// Page is a 'space' page.
+			// Default page is a space. Get bucket title.
 			$the_title = $sslivewp->GetBucketTitle($space_id, $bucket_id);
 		} else
 		{
-			// Page is a 'bucket' page.
-			// Nothing to do.
+			// Default page is a bucket. Nothing to do.
 		}
 
 	} else {
@@ -331,27 +326,10 @@ function screenstepslive_parseContent($the_content)
 			}
 			
 		} else if (!empty($space_id) && !empty($manual_id)) {
-			if ($page['resource_id'] == 0)
-			{
-				$text .= $sslivewp->GetManualList($post->ID, $space_id, $manual_id);
-				
-			} else
-			{
-				// Page is a 'manual' page.
-				$text .= $sslivewp->GetManualList($post->ID, $space_id, $manual_id);
-			}
+			$text .= $sslivewp->GetManualList($post->ID, $space_id, $manual_id);
 			
 		} else if (!empty($space_id) && !empty($bucket_id)) {
-			if ($page['resource_id'] == 0)
-			{
-				// Page is a 'space' page.
-				$text .= $sslivewp->GetBucketList($post->ID, $space_id, $bucket_id);
-				
-			} else
-			{
-				// Page is a 'bucket' page.
-				$text .= $sslivewp->GetBucketList($post->ID, $space_id, $bucket_id);
-			}
+			$text .= $sslivewp->GetBucketList($post->ID, $space_id, $bucket_id);
 
 		} else {
 			$text = $sslivewp->GetSpaceList($post->ID, $space_id);
