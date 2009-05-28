@@ -1,6 +1,6 @@
 <?php
 
-// Version 0.9.3.1
+// Version 0.9.3.2
 
 // Include ScreenSteps Live class file
 require_once(dirname(__FILE__) . '/sslive_class.php');
@@ -272,12 +272,16 @@ class SSLiveWordPress extends SSLiveAPI {
 						if (strtolower($asset['type']) == 'manual')
 						{
 							$link_to_page = $this->GetLinkToManual($post_id, $space_id, $asset['id']);
-							$text .= ('<li><a href="' . $link_to_page . '">' . $asset['title'] . "</a></li>\n");
+							$text .= ('<li class="screenstepslive_manual"><a href="' . $link_to_page . '">' . $asset['title'] . "</a></li>\n");
 						}
-						else
+						else if (strtolower($asset['type']) == 'divider')
+						{
+							$text .= ('<li class="screenstepslive_divider">' . $asset['title'] . "</li>\n");
+						}
+						else if (strtolower($asset['type']) == 'lesson')
 						{
 							$link_to_page = $this->GetLinkToBucket($post_id, $space_id, $asset['id']);
-							$text .= ('<li><a href="' . $link_to_page . '">' . $asset['title'] . "</a></li>\n");
+							$text .= ('<li class="screenstepslive_lesson"><a href="' . $link_to_page . '">' . $asset['title'] . "</a></li>\n");
 						}							
 					}
 					$text .= ("</ul>\n");
