@@ -1,6 +1,6 @@
 <?php
 
-// Version 0.9.3.2
+// Version 1.0.0
 
 // Include ScreenSteps Live class file
 require_once(dirname(__FILE__) . '/sslive_class.php');
@@ -278,7 +278,7 @@ class SSLiveWordPress extends SSLiveAPI {
 						{
 							$text .= ('<li class="screenstepslive_divider">' . $asset['title'] . "</li>\n");
 						}
-						else if (strtolower($asset['type']) == 'lesson')
+						else if (strtolower($asset['type']) == 'bucket')
 						{
 							$link_to_page = $this->GetLinkToBucket($post_id, $space_id, $asset['id']);
 							$text .= ('<li class="screenstepslive_lesson"><a href="' . $link_to_page . '">' . $asset['title'] . "</a></li>\n");
@@ -392,10 +392,22 @@ class SSLiveWordPress extends SSLiveAPI {
 				} else {
 					if ($array['steps']['step']) {
 						foreach ($array['steps']['step'] as $key => $step) {
+							// $step['media'][0]['type'] = image | text
+							// text: has a node "text"
 							$text .= ('<h3>' . $step['title'] . "</h3>\n");
 							$text .= ('<p>' . $step['instructions'] . "</p>\n");
-							$text .= ('<div class="screenstepslive_image"><img src="' . $step['media'][0]['url'] . 
-								'" width="' . $step['media'][0]['width'] . '" height="' . $step['media'][0]['height'] . '" /></div>' . "\n");
+							
+							switch (strtolower($step['media'][0]['type'])) {
+								case 'text':
+									$text .= '<div class="screenstepslive_mediatext">' . $step['media'][0]['text'] .
+										'</div>';
+									break;
+								case 'image':
+								default:
+									$text .= ('<div class="screenstepslive_image"><img src="' . $step['media'][0]['url'] . 
+										'" width="' . $step['media'][0]['width'] . '" height="' . $step['media'][0]['height'] . '" /></div>' . "\n");
+									break;
+							}
 							$text .= ('<p></p>' . "\n");
 						}
 					}
