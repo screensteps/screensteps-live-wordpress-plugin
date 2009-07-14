@@ -1,6 +1,6 @@
 <?php
 
-// Version 1.0.0
+// Version 1.0.1
 
 // Include ScreenSteps Live class file
 require_once(dirname(__FILE__) . '/sslive_class.php');
@@ -266,9 +266,16 @@ class SSLiveWordPress extends SSLiveAPI {
 			if ($array) {
 				if (count($array['assets']['asset']) == 0) {
 					$text .= "<p>Space has no assets.</p>";
-				} else {					
-					$text .= ("<ul>\n");
+				} else {
+					if ( strtolower($array['assets']['asset'][0]['type']) == 'divider' ) $ulState = NULL;
+					else $ulState = 'closed';
+					
 					foreach ($array['assets']['asset'] as $asset) {
+						if ($ulState == 'closed' || ($ulState == NULL && strtolower($asset['type']) != 'divider') ) {
+							$text .= "<ul>\n";
+							$ulState = 'open';
+						}
+						
 						if (strtolower($asset['type']) == 'manual')
 						{
 							$link_to_page = $this->GetLinkToManual($post_id, $space_id, $asset['id']);
@@ -276,7 +283,11 @@ class SSLiveWordPress extends SSLiveAPI {
 						}
 						else if (strtolower($asset['type']) == 'divider')
 						{
-							$text .= ('<li class="screenstepslive_divider">' . $asset['title'] . "</li>\n");
+							if ($ulState == 'open') $text .= "</ul>\n";
+							
+							$text .= ('<h2 class="screenstepslive_divider">' . $asset['title'] . "</h2>\n");
+							
+							$ulState = NULL;
 						}
 						else if (strtolower($asset['type']) == 'bucket')
 						{
@@ -284,7 +295,10 @@ class SSLiveWordPress extends SSLiveAPI {
 							$text .= ('<li class="screenstepslive_lesson"><a href="' . $link_to_page . '">' . $asset['title'] . "</a></li>\n");
 						}							
 					}
-					$text .= ("</ul>\n");
+					
+					if ($ulState == 'open') {
+						$text .= ("</ul>\n");
+					}
 				}
 				
 			} else {
