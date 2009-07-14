@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 1.0.1
+Version: 1.0.2
 Author: Blue Mango Learning Systems
 Author URI: http://www.screensteps.com
 */
@@ -594,7 +594,7 @@ END;
 }
 
 
-function screenstepslive_createTemplatePage($type) {
+function screenstepslive_createTemplatePage($type='') {
 	if (!current_user_can( 'edit_others_pages' )) {
 		return new WP_Error( 'edit_others_pages', __( 'You are not allowed to create pages as this user.' ) );
 	}
