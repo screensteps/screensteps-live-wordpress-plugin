@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 1.0.3
+Version: 1.0.4
 Author: Blue Mango Learning Systems
 Author URI: http://www.screensteps.com
 */
@@ -15,7 +15,7 @@ $screenstepslivewp = NULL;
 
 
 // This plugin processes content of all posts
-add_filter('wp_head', 'screenstepslive_addHeader', 100);
+add_action('wp_head', 'screenstepslive_addHeader', 100);
 add_filter('the_content', 'screenstepslive_parseContent', 100);
 add_filter('the_title', 'screenstepslive_parseTitle', 100);
 add_filter('wp_list_pages', 'screenstepslive_listPages', 100);
@@ -53,6 +53,71 @@ function screenstepslive_initializeObject()
 
 
 function screenstepslive_addHeader() {
+	// Was a comment submitted?
+	if ($_POST['screenstepslive_comment_submit'] == 1) {
+		////////////
+		$sslivewp = screenstepslive_initializeObject();
+		
+		$postID = $_POST['sslivecommment']['page_id'];
+		
+		// Find settings for this page
+		$pages = get_option('screenstepslive_pages');
+		
+		foreach ($pages as $key => $page_entry) {
+			if ($page_entry['id'] == $postID) {
+				$page = $page_entry;
+				break;
+			}
+		}
+		
+		// Get out if we have nothing to offer.
+		if (!isset($page)) wp_die('unable to find page for comment submission');
+		
+		$space_id = $page['space_id'];
+		$manual_id = $sslivewp->CleanseID($_GET['manual_id']);
+		$bucket_id = $sslivewp->CleanseID($_GET['bucket_id']);
+		if ($page['resource_type'] == 'bucket' && 
+			( (is_string($page['resource_id']) && !empty($page['resource_id'])) || (is_int($page['resource_id']) && $page['resource_id'] > 0) )
+			)
+			
+			$bucket_id = $page['resource_id'];
+		else if ($page['resource_type'] == 'manual' && 
+			( (is_string($page['resource_id']) && !empty($page['resource_id'])) || (is_int($page['resource_id']) && $page['resource_id'] > 0) )
+			)
+			$manual_id = $page['resource_id'];
+		$lesson_id = $sslivewp->CleanseID($_GET['lesson_id']);
+		////////////
+		
+		if ($page['resource_type'] == 'manual') {
+			$resource_type = 'manual';
+			$resource_id = $manual_id;
+		} else {
+			$resource_type = 'bucket';
+			$resource_id = $bucket_id;
+		}
+		
+		$name = $_POST['sslivecommment']['author'];
+		$email = $_POST['sslivecommment']['email'];
+		$comment = $_POST['sslivecommment']['comment'];
+		
+		if (get_magic_quotes_gpc()) {
+			$name = stripslashes($name);
+			$email = stripslashes($email);
+			$comment = stripslashes($comment);
+		}
+		
+		$errors = $sslivewp->SubmitLessonComment($space_id, $resource_type, $resource_id, $lesson_id, 
+			$name, $email, $comment, $_POST['sslivecommment']['subscribe']);
+		if ( count($errors) > 0 ) {
+			foreach ($errors as $key=>$value)
+			{
+				$error_str .= '<p>' . $value . '</p>';
+			}
+			wp_die($error_str);
+		}
+	}
+
+	// CSS
 	$plugin_folder = basename(dirname(__FILE__));
 	echo '<link type="text/css" rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-content/plugins/' . $plugin_folder . '/css/screenstepslive.css" />' . "\n";
 }
@@ -68,9 +133,9 @@ function screenstepslive_listPages($the_output) {
 	// Find settings for this page
 	$pages = get_option('screenstepslive_pages');
 	
-	foreach ($pages as $page_id => $value) {
-		if ($page_id == $post->ID) {
-			$page = $value;
+	foreach ($pages as $key => $page_entry) {
+		if ($page_entry['id'] == $post->ID) {
+			$page = $page_entry;
 			break;
 		}
 	}
@@ -168,9 +233,9 @@ function screenstepslive_parseTitle($the_title) {
 	// Find settings for this page
 	$pages = get_option('screenstepslive_pages');
 	
-	foreach ($pages as $page_id => $value) {
-		if ($page_id == $post->ID) {
-			$page = $value;
+	foreach ($pages as $key => $page_entry) {
+		if ($page_entry['id'] == $post->ID) {
+			$page = $page_entry;
 			break;
 		}
 	}
@@ -262,10 +327,10 @@ function screenstepslive_parseContent($the_content)
 		
 		// Find settings for this page
 		$pages = get_option('screenstepslive_pages');
-		
-		foreach ($pages as $page_id => $value) {
-			if ($page_id == $post->ID) {
-				$page = $value;
+
+		foreach ($pages as $key => $page_entry) {
+			if ($page_entry['id'] == $post->ID) {
+				$page = $page_entry;
 				break;
 			}
 		}
@@ -296,6 +361,16 @@ function screenstepslive_parseContent($the_content)
 			$text = $sslivewp->GetSpacesList($post->ID);
 			
 		}  else if (!empty($space_id) && !empty($lesson_id)) {
+		
+			if ($page['resource_type'] == 'manual') {
+				$resource_type = 'manual';
+				$resource_id = $manual_id;
+			} else {
+				$resource_type = 'bucket';
+				$resource_id = $bucket_id;
+			}
+		
+			// What content to display?
 			if (!empty($manual_id)) {
 				$max_len = 30;
 			
@@ -329,6 +404,8 @@ function screenstepslive_parseContent($the_content)
 	
 				$text = $sslivewp->GetLessonHTML($space_id, 'bucket', $bucket_id, $lesson_id);
 			}
+			
+			$text .= $sslivewp->GetLessonComments($post->ID, $space_id, $resource_type, $resource_id, $lesson_id);
 			
 		} else if (!empty($space_id) && !empty($manual_id)) {
 			$text .= $sslivewp->GetManualList($post->ID, $space_id, $manual_id);

@@ -1,6 +1,6 @@
 <?php
 
-// Version 1.0.0
+// Version 1.0.1
 
 // You need to get this from PEAR
 // http://pear.php.net/package/Crypt_HMAC
@@ -164,6 +164,72 @@ class SSLiveAPI {
 		}
 	}
 	
+	// Returns array of error strings (0 indexed)
+	function SubmitLessonComment($space_id, $resource_type, $resource_id, $lesson_id, $name, $email, $comment, $subscribe) {
+		
+		/*
+		/comments/
+		:lesson_id
+		:comment => {:comment, :email, :name, :space_id, :manual_id, :bucket_id}
+		*/
+		
+		$errors[1] = array();
+		$url = $this->getCompleteURL('/spaces/' . $space_id . '/comments/?lesson_id=' . $lesson_id);
+		$header = $this->getSSLiveHeader($url, "multipart/form-data");
+		//print_r($header);
+				
+		$resource_key = (strtolower($resource_type) == 'manual') ? 'manual_id' : 'bucket_id';
+		
+		$fields = array (
+				'lesson_id'=>$lesson_id,
+				'comment[comment]'=>$comment,
+				'comment[name]'=>$name,
+				'comment[email]'=>$email,
+				'comment[subscribe]'=>$subscribe,
+				'comment[' . $resource_key . ']'=>$resource_id
+			);
+					
+		//print $fields_string;
+	
+		// Configure CURL
+		$curl = curl_init();
+		curl_setopt($curl, CURLOPT_URL, $url);
+		//curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);     // follow redirects
+		//curl_setopt($curl, CURLOPT_AUTOREFERER, true); // 
+		//curl_setopt($curl, CURLOPT_MAXREDIRS, 1);
+		curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
+		curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
+		curl_setopt($curl, CURLOPT_POST, 1);
+		curl_setopt($curl, CURLOPT_POSTFIELDS, $fields);
+							
+		// Set header and post data
+		curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
+		$data = curl_exec($curl);
+		$error = curl_error($curl);
+		$returned_header  = curl_getinfo( $curl );
+		curl_close($curl);
+			
+		//print_r($returned_header);
+		//print $data;
+		
+		// Check for errors
+		if ($returned_header['http_code'] != 200) {
+			preg_match_all('/\<error\>(.*?)\<\/error\>/', $data, $errors);
+			// $error[1] is array of error message matches
+			/*
+			<errors>
+			  <error>Name can't be blank</error>
+			  <error>Email can't be blank</error>
+			  <error>Email is too short (minimum is 3 characters)</error>
+			  <error>Email should look like an email address.</error>
+			</errors>
+			*/
+		}
+		
+		return $errors[1];
+	}
+	
 	
 	// PRIVATE
 	
@@ -172,23 +238,39 @@ class SSLiveAPI {
 		return $url;
 	}
 	
+	function getSSLiveHeader($url, $contentType='application/xml') {
+		$header = '';
+		
+		$parsed_url = parse_url($url);
+		$path_query = $parsed_url['path'];
+		if (!empty($parsed_url['query'])) {
+			$path_query .= '?' . $parsed_url['query'];
+			if (!empty($parsed_url['fragment'])) {
+				$path_query .= '#' . $parsed_url['fragment'];
+			}
+		}
+		$httpDate = gmdate("D, d M Y H:i:s T");
+				
+		## Build authentication header based on auth type
+		$header[] = "Content-Type: " . $contentType;
+		$header[] = "Accept: application/xml";
+		$header[] = "Date: " . $httpDate;
+		if ($this->auth['type'] == 'api key' ) {
+			$header[] = "Authorization: ScreenStepsLiveAPI auth=" . $this->encode($this->domain . ':' . $path_query . ':' . $httpDate);
+		} elseif (!empty($this->auth['username'])) {
+			$header[] = "Authorization: Basic " . base64_encode($this->auth['username'] . ':' . $this->auth['password']);
+		}
+		
+		return $header;
+	}
+
+	
 	function requestURLData($url, &$data) {
 		$error = '';
-		$key = '';
-		$value = '';
-		$formData = '';
 		
 		if ($error == '')
 		{
-			$parsed_url = parse_url($url);
-			$path_query = $parsed_url['path'];
-			if (!empty($parsed_url['query'])) {
-				$path_query .= '?' . $parsed_url['query'];
-				if (!empty($parsed_url['fragment'])) {
-					$path_query .= '#' . $parsed_url['fragment'];
-				}
-			}
-			$httpDate = gmdate("D, d M Y H:i:s T");
+			$header = $this->getSSLiveHeader($url);
 	
 			// Configure CURL
 			$curl = curl_init();
@@ -199,18 +281,6 @@ class SSLiveAPI {
 			curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 			curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
 			curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
-					
-			## Build authentication header based on auth type
-			$header[] = "Content-Type: application/xml";
-			$header[] = "Accept: application/xml";
-			$header[] = "Date: " . $httpDate;
-			if ($this->auth['type'] == 'api key' ) {
-				$header[] = "Authorization: ScreenStepsLiveAPI auth=" . $this->encode($this->domain . ':' . $path_query . ':' . $httpDate);
-			} elseif (!empty($this->auth['username'])) {
-				$header[] = "Authorization: Basic " . base64_encode($this->auth['username'] . ':' . $this->auth['password']);
-			}
-			
-			//print_r($header);
 							
 			// Set header and get data
 			curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
@@ -379,6 +449,7 @@ class SSLiveAPI {
 						case 'bucket':
 						case 'space':
 						case 'steps':
+						case 'comments':
 						case 'next_lesson':
 						case 'previous_lesson':
 							$storeAsArrayIndex = FALSE;

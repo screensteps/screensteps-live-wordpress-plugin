@@ -383,18 +383,19 @@ class SSLiveWordPress extends SSLiveAPI {
 	
 	function GetLessonHTML($space_id, $type, $type_id, $lesson_id) {
 		$text = '';
+		$type = strtolower($type);
 		
 		// Validate that user can view this manual
 		if ($this->UserCanViewSpace($this->spaces_settings[$space_id])) {
 			
-			if (strtolower($type) == 'manual') {
+			if ($type == 'manual') {
 				$this->CacheManualLesson($space_id, $type_id, $lesson_id);
 			} else {
 				$this->CacheBucketLesson($space_id, $type_id, $lesson_id);
 			}
 			
 			$array =& $this->arrays['lesson'];
-			
+						
 			if ($array) {
 				if ($array['description'] != '' && $array['description'] != '<p></p>') {
 					$text .= ('<p>' . $array['description'] . "</p>\n");
@@ -432,6 +433,90 @@ class SSLiveWordPress extends SSLiveAPI {
 			
 		} else {
 			$text = $this->unauthorized_msg;
+		}
+		
+		return $text;
+	}
+	
+	
+	function GetLessonComments($post_id, $space_id, $type, $type_id, $lesson_id) {
+		$text = '';
+		$type = strtolower($type);
+		
+		// Validate that user can view this manual
+		if ($this->UserCanViewSpace($this->spaces_settings[$space_id])) {
+			
+			if ($type == 'manual') {
+				$this->CacheManualLesson($space_id, $type_id, $lesson_id);
+			} else {
+				$this->CacheBucketLesson($space_id, $type_id, $lesson_id);
+			}
+			
+			$array =& $this->arrays['lesson'];
+						
+			if ($array) {					
+				// Lesson Comments
+				// Use WordPress ids and layout
+				$commentCount = ( is_array($array['comments']) ) ? count($array['comments']['comment']) : 0;
+				$text .= '<h3 id="comments">Comments (' . $commentCount . ')</h3>' . "\n";
+						
+				if ( is_array($array['comments']) ) {
+					$text .= '<ol class="commentlist">'. "\n";
+					$i = 0;
+					
+					foreach ($array['comments']['comment'] as $key => $comment) {
+						// Use WordPress settings
+						$createdAt = strtotime($comment['created_at']);
+						$createdAt = $createdAt + (get_option('gmt_offset') * 60 * 60);
+						$createdAt = date(get_option('date_format') . ' ' . get_option('time_format'), $createdAt);
+						
+						$text .= '<li class="alt" id="comment-' . $comments['id'] . '">'. "\n";
+						$text .= '<cite>' . $comment['name'] . '</cite>';
+						$text .= '<br />';
+						$text .= '<small class="commentmetadata"><a href="#comment-' . $comments['id'] . '" title="">' .
+							$createdAt . '</a></small>';
+							
+							
+						$text .= urldecode($comment['content']);
+								
+						$text .= '</li>'. "\n"; // comment
+					}
+					
+					$text .= '</ol>'. "\n"; // commentlist
+				}
+				
+				// Allow comments?
+				if (strtolower($array['allow_comments']) == 'true') {
+					$type_key = ($type == 'manual') ? 'manual_id' : 'bucket_id';
+					if ($type == 'manual') $formurl = $this->GetLinkToManualLesson($post_id, $space_id, $type_id, $lesson_id);
+					else $formurl = $this->GetLinkToBucketLesson($post_id, $space_id, $type_id, $lesson_id);
+$text .= <<<eof
+	<h3 id="respond">Add Your Comment</h3>
+	<form action="$formurl" id="commentform" method="post">
+		
+		<input id="comment_submit" name="screenstepslive_comment_submit" type="hidden" value="1" />
+		<input id="comment_lesson_id" name="sslivecommment[lesson_id]" type="hidden" value="$lesson_id" />
+		<input id="comment_space_id" name="sslivecommment[space_id]" type="hidden" value="$space_id" />
+		<input id="comment_manual_id" name="sslivecommment[$type_key]" type="hidden" value="$type_id" />
+		<input id="comment_subscribe" name="sslivecommment[subscribe]" type="hidden" value="1" />
+		<input id="sslive_id_comment" name="sslivecommment[page_id]" type="hidden" value="$post_id" />
+		
+	<div align="left">
+		<p><input type="text" name="sslivecommment[author]" id="author" size="22" tabindex="1" />
+		<label for="author"><small>Name</small></label></p>
+		
+		<p><input type="text" name="sslivecommment[email]" id="email" size="22" tabindex="2" />
+		<label for="email"><small>Email</small></label></p>
+		
+		<p><textarea name="sslivecommment[comment]" id="comment" cols="100%" rows="10" tabindex="4"></textarea></p>
+
+		<button type="submit">Submit Comment</button>
+	</div>
+
+	</form>
+eof;
+				}
+			}
 		}
 		
 		return $text;
