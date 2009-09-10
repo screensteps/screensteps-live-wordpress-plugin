@@ -506,6 +506,7 @@ function screenstepslive_optionPage()
 					$pages[$page_id]['resource_id'] = $new_page['resource_id'];
 				}
 				$pages[$page_id]['space_id'] = $new_page['space_id'];
+				$pages[$page_id]['resource_type'] = 'manual';
 			}
 		}
 			
