@@ -1,6 +1,6 @@
 <?php
 
-// Version 1.0.1
+// Version 1.0.2
 
 // You need to get this from PEAR
 // http://pear.php.net/package/Crypt_HMAC
@@ -44,6 +44,10 @@ class SSLiveAPI {
 	}
 	
 	// PUBLIC
+	
+	function SetDomain($domain) {
+		$this->domain = $domain;
+	}
 	
 	
 	function SetAPIKey($api_key) {

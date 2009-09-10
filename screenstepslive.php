@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 1.0.4
+Version: 1.0.5
 Author: Blue Mango Learning Systems
 Author URI: http://www.screensteps.com
 */
@@ -467,11 +467,26 @@ function screenstepslive_optionPage()
 	
 	// API form was submitted
 	if ($_POST['api_submitted'] == 1) {
+		
+		if (get_option('screenstepslive_domain') != $_POST['domain']) {
+			// Reset caches as account probably changed.
+			$pages = get_option('screenstepslive_pages');
+			if (is_array($pages) ) {
+				foreach ($pages as $key => $page) {
+					$pages[$key]['space_id'] = '';
+					$pages[$key]['resource_type'] = '';
+					$pages[$key]['resource_id'] = '';
+				}
+				update_option('screenstepslive_pages', $pages);
+			}
+		}
+	
 		update_option('screenstepslive_domain', $_POST['domain']);
 		update_option('screenstepslive_reader_name', $_POST['reader_name']);
 		update_option('screenstepslive_reader_password', $_POST['reader_password']);
 		update_option('screenstepslive_protocol', $_POST['protocol']);
 		
+		$sslivewp->domain = $_POST['domain'];
 		$sslivewp->SetUserCredentials($_POST['reader_name'], $_POST['reader_password']);
 		$sslivewp->protocol = $_POST['protocol'];
 		
@@ -479,10 +494,10 @@ function screenstepslive_optionPage()
 	}
 	
 	// Manuals form was subbmited
-	if ($_POST['pages_submitted'] == 1) {		
-		// Loop through posted pages, making sure they still exist. User could have deleted one.
+	if ($_POST['pages_submitted'] == 1&& is_array($_POST['pages'])) {		
+		// Loop through posted pages, making sure they still exist. User could have deleted one.		
 		$pages = get_option('screenstepslive_pages');
-		
+
 		foreach ($_POST['pages'] as $page_id => $new_page) {
 			if (isset($pages[$page_id])) {
 				if ($pages[$page_id]['space_id'] != $new_page['space_id']) {
@@ -493,9 +508,8 @@ function screenstepslive_optionPage()
 				$pages[$page_id]['space_id'] = $new_page['space_id'];
 			}
 		}
-				
+			
 		update_option('screenstepslive_pages', $pages);
-		
 		$form_submitted = true;
 	}
 	
@@ -617,11 +631,13 @@ END;
 								if ($page['space_id'] > 0) {
 									if (!isset($manuals[ $page['space_id'] ])) {
 										$space = $sslivewp->GetSpace($page['space_id']);
-										foreach ($space['assets']['asset'] as $asset) {
-											if (strtolower($asset['type']) == 'manual') {
-												$manuals[ $page['space_id'] ][] = array('id'=>$asset['id'], 'title'=>$asset['title']);
-											} elseif (strtolower($asset['type']) == 'bucket') {
-												$buckets[ $page['space_id'] ][] = array('id'=>$asset['id'], 'title'=>$asset['title']);
+										if (is_array($space['assets']['asset'])) {
+											foreach ($space['assets']['asset'] as $asset) {
+												if (strtolower($asset['type']) == 'manual') {
+													$manuals[ $page['space_id'] ][] = array('id'=>$asset['id'], 'title'=>$asset['title']);
+												} elseif (strtolower($asset['type']) == 'bucket') {
+													$buckets[ $page['space_id'] ][] = array('id'=>$asset['id'], 'title'=>$asset['title']);
+												}
 											}
 										}
 									}
