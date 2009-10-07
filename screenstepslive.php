@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 1.0.6
+Version: 1.0.7
 Author: Blue Mango Learning Systems
 Author URI: http://www.screensteps.com
 */
@@ -166,22 +166,34 @@ function screenstepslive_query_vars($request)
 				if ($name == $page_entry['permalink']) {
 					if (isset($pathParts[$i+1]))
 					{
+						$pageIsSet = isset($request['page']) && !empty($request['page']);
+						
 						$screenstepslivePages['space'] = $pathParts[$i+1];
-						if ($pathParts[$i+2] == 'manual')
-							$screenstepslivePages['manual'] = $pathParts[$i+3];
-						else
-							$screenstepslivePages['bucket'] = $pathParts[$i+3];
-							
-						if (isset($request['page']) && !empty($request['page']))
-							$screenstepslivePages['lesson'] = substr($request['page'], 1, strlen($request['page'])); // e.g. /4709
-						else if (isset($pathParts[$i+4]))
-							$screenstepslivePages['lesson'] = $pathParts[$i+4];
+						if ($pathParts[$i+2] == 'manual') {
+							// Look for numeric id
+							if (!isset($pathParts[$i+4]) && $pageIsSet)
+								$screenstepslivePages['manual'] = substr($request['page'], 1, strlen($request['page'])); // e.g. /4709
+							else
+								$screenstepslivePages['manual'] = $pathParts[$i+3];
+						} else {
+							// Look for numeric id
+							if (!isset($pathParts[$i+4]) && $pageIsSet)
+								$screenstepslivePages['bucket'] = substr($request['page'], 1, strlen($request['page'])); // e.g. /4709
+							else
+								$screenstepslivePages['bucket'] = $pathParts[$i+3];
+						}
+
+						if (isset($pathParts[$i+4])) {
+							if ($pageIsSet)
+								$screenstepslivePages['lesson'] = substr($request['page'], 1, strlen($request['page'])); // e.g. /4709
+							else
+								$screenstepslivePages['lesson'] = $pathParts[$i+4];
+						}
 							
 						$screenstepslivePages['lesson'] = explode('-', $screenstepslivePages['lesson']);
 						$screenstepslivePages['lesson'] = $screenstepslivePages['lesson'][0];
 						
 						$request['pagename'] = $newPageName . $name;
-						//print_r($screenstepslivePages);
 					}
 					break 2;
 				}
