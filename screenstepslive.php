@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 1.0.5
+Version: 1.0.6
 Author: Blue Mango Learning Systems
 Author URI: http://www.screensteps.com
 */
@@ -12,6 +12,7 @@ Author URI: http://www.screensteps.com
 
 // Global var for SSLiveWordPress object. It is shared among multiple wp callbacks.
 $screenstepslivewp = NULL;
+$screenstepslivePages = NULL;
 
 
 // This plugin processes content of all posts
@@ -20,7 +21,10 @@ add_filter('the_content', 'screenstepslive_parseContent', 100);
 add_filter('the_title', 'screenstepslive_parseTitle', 100);
 add_filter('wp_list_pages', 'screenstepslive_listPages', 100);
 add_filter('delete_post', 'screenstepslive_checkIfDeletedPostIsReferenced', 100);
+add_filter('name_save_pre', 'screenstepslive_changePagePermalink', 100);
 add_action('admin_menu', 'screenstepslive_addPages');
+
+add_filter('request', 'screenstepslive_query_vars', 100);
 
 
 function screenstepslive_initializeObject()
@@ -73,27 +77,39 @@ function screenstepslive_addHeader() {
 		// Get out if we have nothing to offer.
 		if (!isset($page)) wp_die('unable to find page for comment submission');
 		
-		$space_id = $page['space_id'];
+		global $screenstepslivePages;
+		
+		if (empty($screenstepslivePages)) {
+			$screenstepslivePages['space'] = empty($page['space_permalink']) ? $page['space_id'] : $page['space_permalink'];
+			$screenstepslivePages['manual'] = $sslivewp->CleanseID($_GET['manual_id']);
+			$screenstepslivePages['bucket'] = $sslivewp->CleanseID($_GET['bucket_id']);
+			$screenstepslivePages['lesson'] = $sslivewp->CleanseID($_GET['lesson_id']);
+		}
+		
+		/*$space_id = $page['space_id'];
 		$manual_id = $sslivewp->CleanseID($_GET['manual_id']);
 		$bucket_id = $sslivewp->CleanseID($_GET['bucket_id']);
+		*/
 		if ($page['resource_type'] == 'bucket' && 
 			( (is_string($page['resource_id']) && !empty($page['resource_id'])) || (is_int($page['resource_id']) && $page['resource_id'] > 0) )
 			)
 			
-			$bucket_id = $page['resource_id'];
+			$screenstepslivePages['bucket'] = $page['resource_id'];
 		else if ($page['resource_type'] == 'manual' && 
 			( (is_string($page['resource_id']) && !empty($page['resource_id'])) || (is_int($page['resource_id']) && $page['resource_id'] > 0) )
 			)
-			$manual_id = $page['resource_id'];
-		$lesson_id = $sslivewp->CleanseID($_GET['lesson_id']);
+			$screenstepslivePages['manual'] = $page['resource_id'];
+		
+		/* $lesson_id = $sslivewp->CleanseID($_GET['lesson_id']);*/
+		
 		////////////
 		
 		if ($page['resource_type'] == 'manual') {
 			$resource_type = 'manual';
-			$resource_id = $manual_id;
+			$resource_id = $screenstepslivePages['manual'];
 		} else {
 			$resource_type = 'bucket';
-			$resource_id = $bucket_id;
+			$resource_id = $screenstepslivePages['bucket'];
 		}
 		
 		$name = $_POST['sslivecommment']['author'];
@@ -106,7 +122,7 @@ function screenstepslive_addHeader() {
 			$comment = stripslashes($comment);
 		}
 		
-		$errors = $sslivewp->SubmitLessonComment($space_id, $resource_type, $resource_id, $lesson_id, 
+		$errors = $sslivewp->SubmitLessonComment($screenstepslivePages['space'], $resource_type, $resource_id, $screenstepslivePages['lesson'], 
 			$name, $email, $comment, $_POST['sslivecommment']['subscribe']);
 		if ( count($errors) > 0 ) {
 			foreach ($errors as $key=>$value)
@@ -123,10 +139,101 @@ function screenstepslive_addHeader() {
 }
 
 
+// Support for mod-rewrite
+function screenstepslive_query_vars($request)
+{
+	global $screenstepslivePages;
+	
+	//print_r($request);
+	/*
+	Array
+	(
+		[page] => /4209
+		[pagename] => screensteps-live-page/space/4/manual/screensteps/lesson
+	)
+	*/
+	$pathParts = explode('/', $request['pagename']);
+	//print_r($pathParts);
+	
+	$pages = get_option('screenstepslive_pages');
+	
+	// Update permalink for page
+	if (is_array($pages))
+	{
+		foreach ($pages as $key => $page_entry) {
+			$newPageName = '';
+			foreach ($pathParts as $i => $name) {
+				if ($name == $page_entry['permalink']) {
+					if (isset($pathParts[$i+1]))
+					{
+						$screenstepslivePages['space'] = $pathParts[$i+1];
+						if ($pathParts[$i+2] == 'manual')
+							$screenstepslivePages['manual'] = $pathParts[$i+3];
+						else
+							$screenstepslivePages['bucket'] = $pathParts[$i+3];
+							
+						if (isset($request['page']) && !empty($request['page']))
+							$screenstepslivePages['lesson'] = substr($request['page'], 1, strlen($request['page'])); // e.g. /4709
+						else if (isset($pathParts[$i+4]))
+							$screenstepslivePages['lesson'] = $pathParts[$i+4];
+							
+						$screenstepslivePages['lesson'] = explode('-', $screenstepslivePages['lesson']);
+						$screenstepslivePages['lesson'] = $screenstepslivePages['lesson'][0];
+						
+						$request['pagename'] = $newPageName . $name;
+						//print_r($screenstepslivePages);
+					}
+					break 2;
+				}
+				 else
+				{
+					// May include a parent page
+					$newPageName .= $name . '/';
+				}
+			}
+		}
+	}	
+	//print_r($request);
+	
+	return $request;
+}
+
+
+function screenstepslive_changePagePermalink($data)
+{
+	$pageID = (int) $_POST['post_ID'];
+	
+	// Find settings for this page
+	// Can't find way to determine if revision is being inserted other than this.
+	// ID doesn't seem to be available anywhere. Silly.
+	if ($pageID > 0 && $data != ($pageID . '-revision')) 
+	{
+		$pages = get_option('screenstepslive_pages');
+		
+		// Update permalink for page
+		foreach ($pages as $key => $page_entry) {
+			if ($page_entry['id'] == $pageID) {
+				if (empty($data)) {
+					// WordPress hasn't assigned permalink yet. Grab one.
+					$data = get_sample_permalink($pageID);
+					$data = $data[1];
+				}
+				$pages[$key]['permalink'] = $data;
+				update_option('screenstepslive_pages', $pages);
+				break;
+			}
+		}
+	}
+	
+	return $data;
+}
+
+
 function screenstepslive_listPages($the_output) {
 	// We remove the link to the current SS Live page from the list. It's $title will be rewritten
 	// by screenstepslive_parseTitle and since WordPress has one filter for ALL titles we don't have
 	// a lot of options.
+	global $screenstepslivePages;
 	$postID = get_the_ID();
 	$post = &get_post($postID);
 			
@@ -142,67 +249,74 @@ function screenstepslive_listPages($the_output) {
 		
 	// Get out if we have nothing to offer.
 	if (!isset($page)) return ($the_output);
-	
+		
 	// Include necessary SS Live files
 	$sslivewp = screenstepslive_initializeObject();
 	
-	$space_id = $page['space_id'];
+	if (empty($screenstepslivePages)) {
+		$screenstepslivePages['space'] = empty($page['space_permalink']) ? $page['space_id'] : $page['space_permalink'];
+		$screenstepslivePages['manual'] = $sslivewp->CleanseID($_GET['manual_id']);
+		$screenstepslivePages['bucket'] = $sslivewp->CleanseID($_GET['bucket_id']);
+		$screenstepslivePages['lesson'] = $sslivewp->CleanseID($_GET['lesson_id']);
+	}
+	
+	/*$space_id = $page['space_id'];
 	$manual_id = $sslivewp->CleanseID($_GET['manual_id']);
-	$bucket_id = $sslivewp->CleanseID($_GET['bucket_id']);
+	$bucket_id = $sslivewp->CleanseID($_GET['bucket_id']);*/
 	if ($page['resource_type'] == 'bucket' && $page['resource_id'] > 0)
-		$bucket_id = $page['resource_id'];
+		$screenstepslivePages['bucket'] = $page['resource_id'];
 	else if ($page['resource_type'] == 'manual' && $page['resource_id'] > 0)
-		$manual_id = $page['resource_id'];
-	$lesson_id = $sslivewp->CleanseID($_GET['lesson_id']);
+		$screenstepslivePages['manual'] = $page['resource_id'];
+	/*$lesson_id = $sslivewp->CleanseID($_GET['lesson_id']);*/
 	
 	
 	// What has this page been renamed too?
-	if (empty($space_id))
+	if (empty($screenstepslivePages['space']))
 	{
 		// nothing to do	
-	}  else if (!empty($space_id) && !empty($lesson_id)) {
-		if (!empty($manual_id)) {
+	}  else if (!empty($screenstepslivePages['space']) && !empty($screenstepslivePages['lesson'])) {
+		if (!empty( $screenstepslivePages['manual'] )) {
 			if ($page['resource_id'] == 0)
 			{
 				// Page is a 'space' page.
-				$the_title = '<a href="' . $sslivewp->GetLinkToManual($post->ID, $space_id, $manual_id) . '">' . 
-								$sslivewp->GetManualTitle($space_id, $manual_id) . '</a>: ' .
-							$sslivewp->GetManualLessonTitle($space_id, $manual_id, $lesson_id);			
+				$the_title = '<a href="' . $sslivewp->GetLinkToManual($post->ID, $screenstepslivePages['space'], $screenstepslivePages['manual']) . '">' . 
+								$sslivewp->GetManualTitle($screenstepslivePages['space'], $screenstepslivePages['manual']) . '</a>: ' .
+							$sslivewp->GetManualLessonTitle($screenstepslivePages['space'], $screenstepslivePages['manual'], $screenstepslivePages['lesson']);			
 			} else
 			{
 				// Page is a 'manual' page.
-				$the_title = $sslivewp->GetManualLessonTitle($space_id, $manual_id, $lesson_id);		
+				$the_title = $sslivewp->GetManualLessonTitle($screenstepslivePages['space'], $screenstepslivePages['manual'], $screenstepslivePages['lesson']);		
 			}
-		} else if (!empty($bucket_id)) {
+		} else if (!empty( $screenstepslivePages['bucket'])) {
 			if ($page['resource_id'] == 0)
 			{
 				// Page is a 'space' page.
-				$the_title = '<a href="' . $sslivewp->GetLinkToBucket($post->ID, $space_id, $bucket_id) . '">' . 
-								$sslivewp->GetBucketTitle($space_id, $bucket_id) . '</a>: ' .
-							$sslivewp->GetBucketLessonTitle($space_id, $bucket_id, $lesson_id);				
+				$the_title = '<a href="' . $sslivewp->GetLinkToBucket($post->ID, $screenstepslivePages['space'], $screenstepslivePages['bucket']) . '">' . 
+								$sslivewp->GetBucketTitle($screenstepslivePages['space'], $screenstepslivePages['bucket']) . '</a>: ' .
+							$sslivewp->GetBucketLessonTitle($screenstepslivePages['space'], $screenstepslivePages['bucket'], $screenstepslivePages['lesson']);				
 			} else
 			{
 				// Page is a 'manual' page.
-				$the_title = $sslivewp->GetBucketLessonTitle($space_id, $bucket_id, $lesson_id);		
+				$the_title = $sslivewp->GetBucketLessonTitle($screenstepslivePages['space'], $screenstepslivePages['bucket'], $screenstepslivePages['lesson']);		
 			}
 		}
 			
-	} else if (!empty($space_id) && !empty($manual_id)) {
+	} else if (!empty($screenstepslivePages['space']) && !empty($screenstepslivePages['manual'])) {
 		if ($page['resource_id'] == 0)
 		{
 			// Page is a 'space' page.
-			$the_title = $sslivewp->GetManualTitle($space_id, $manual_id);	
+			$the_title = $sslivewp->GetManualTitle($screenstepslivePages['space'], $screenstepslivePages['manual']);	
 		} else
 		{
 			// Page is a 'manual' page.
 			// Nothing to do.
 		}
 		
-	} else if (!empty($space_id) && !empty($bucket_id)) {		
+	} else if (!empty($screenstepslivePages['space']) && !empty($screenstepslivePages['bucket'])) {		
 		if ($page['resource_id'] == 0)
 		{
 			// Page is a 'space' page.
-			$the_title = $sslivewp->GetBucketTitle($space_id, $bucket_id);
+			$the_title = $sslivewp->GetBucketTitle($screenstepslivePages['space'], $screenstepslivePages['bucket']);
 		} else
 		{
 			// Page is a 'bucket' page.
@@ -226,7 +340,8 @@ function screenstepslive_listPages($the_output) {
 
 function screenstepslive_parseTitle($the_title) {
 	if (!is_page( $the_title)) return ($the_title); // cursed wp_list_pages calls this as well.
-		
+	
+	global $screenstepslivePages;
 	$postID = get_the_ID();
 	$post = &get_post($postID);
 				
@@ -246,60 +361,67 @@ function screenstepslive_parseTitle($the_title) {
 	// Include necessary SS Live files
 	$sslivewp = screenstepslive_initializeObject();
 	
-	$space_id = $page['space_id'];
+	if (empty($screenstepslivePages)) {
+		$screenstepslivePages['space'] = empty($page['space_permalink']) ? $page['space_id'] : $page['space_permalink'];
+		$screenstepslivePages['manual'] = $sslivewp->CleanseID($_GET['manual_id']);
+		$screenstepslivePages['bucket'] = $sslivewp->CleanseID($_GET['bucket_id']);
+		$screenstepslivePages['lesson'] = $sslivewp->CleanseID($_GET['lesson_id']);
+	}
+	
+	/*$space_id = $page['space_id'];
 	$manual_id = $sslivewp->CleanseID($_GET['manual_id']);
-	$bucket_id = $sslivewp->CleanseID($_GET['bucket_id']);
+	$bucket_id = $sslivewp->CleanseID($_GET['bucket_id']);*/
 	if ($page['resource_type'] == 'bucket' && $page['resource_id'] > 0)
-		$bucket_id = $page['resource_id'];
+		$screenstepslivePages['bucket'] = $page['resource_id'];
 	else if ($page['resource_type'] == 'manual' && $page['resource_id'] > 0)
-		$manual_id = $page['resource_id'];
-	$lesson_id = $sslivewp->CleanseID($_GET['lesson_id']);
+		$screenstepslivePages['manual'] = $page['resource_id'];
+	/*$lesson_id = $sslivewp->CleanseID($_GET['lesson_id']); */
 		
-	if (empty($space_id))
+	if (empty($screenstepslivePages['space']))
 	{
 		// nothing to do	
-	}  else if (!empty($space_id) && !empty($lesson_id)) {
-		if (!empty($manual_id)) {
+	}  else if (!empty($screenstepslivePages['space']) && !empty($screenstepslivePages['lesson'])) {
+		if (!empty($screenstepslivePages['manual'])) {
 			if ($page['resource_id'] == 0)
 			{
 				// Default page is a space.
-				$the_title = '<a href="' . $sslivewp->GetLinkToManual($post->ID, $space_id, $manual_id) . '">' . 
-								$sslivewp->GetManualTitle($space_id, $manual_id) . '</a>: ' .
-							$sslivewp->GetManualLessonTitle($space_id, $manual_id, $lesson_id);		
+				$the_title = '<a href="' . $sslivewp->GetLinkToManual($post->ID, $screenstepslivePages['space'], $screenstepslivePages['manual']) . '">' . 
+								$sslivewp->GetManualTitle($screenstepslivePages['space'], $screenstepslivePages['manual']) . '</a>: ' .
+							$sslivewp->GetManualLessonTitle($screenstepslivePages['space'], $screenstepslivePages['manual'], $screenstepslivePages['lesson']);		
 			} else
 			{
 				// Default page is a manual.
-				$the_title = $sslivewp->GetManualLessonTitle($space_id, $manual_id, $lesson_id);		
+				$the_title = $sslivewp->GetManualLessonTitle($screenstepslivePages['space'], $screenstepslivePages['manual'], $screenstepslivePages['lesson']);		
 			}
-		} else if (!empty($bucket_id)) {
+		} else if (!empty($screenstepslivePages['bucket'])) {
 			if ($page['resource_id'] == 0)
 			{
 				// Default page is a space.
-				$the_title = '<a href="' . $sslivewp->GetLinkToBucket($post->ID, $space_id, $bucket_id) . '">' . 
-								$sslivewp->GetBucketTitle($space_id, $bucket_id) . '</a>: ' .
-							$sslivewp->GetBucketLessonTitle($space_id, $bucket_id, $lesson_id);		
+				$the_title = '<a href="' . $sslivewp->GetLinkToBucket($post->ID, $screenstepslivePages['space'], $screenstepslivePages['bucket']) . '">' . 
+								$sslivewp->GetBucketTitle($screenstepslivePages['space'], $screenstepslivePages['bucket']) . '</a>: ' .
+							$sslivewp->GetBucketLessonTitle($screenstepslivePages['space'], $screenstepslivePages['bucket'], $screenstepslivePages['lesson']);		
 			} else
 			{
 				// Default page is a bucket.
-				$the_title = $sslivewp->GetBucketLessonTitle($space_id, $bucket_id, $lesson_id);		
+				$the_title = $sslivewp->GetBucketLessonTitle($screenstepslivePages['space'], $screenstepslivePages['bucket'], $screenstepslivePages['lesson']);		
 			}
 		}
 			
-	} else if (!empty($space_id) && !empty($manual_id)) {
+	} else if (!empty($screenstepslivePages['space']) && !empty($screenstepslivePages['manual'])) {
 		if ($page['resource_id'] == 0)
 		{
 			// Default page is a space. Get manual title.
-			$the_title = $sslivewp->GetManualTitle($space_id, $manual_id);	
+			$the_title = $sslivewp->GetManualTitle($screenstepslivePages['space'], $screenstepslivePages['manual']);	
 		} else
 		{
 			// Default page is a manual. Nothing to do.
 		}
 		
-	} else if (!empty($space_id) && !empty($bucket_id)) {
+	} else if (!empty($screenstepslivePages['space']) && !empty($screenstepslivePages['bucket'])) {
 		if ($page['resource_id'] == 0)
 		{
 			// Default page is a space. Get bucket title.
-			$the_title = $sslivewp->GetBucketTitle($space_id, $bucket_id);
+			$the_title = $sslivewp->GetBucketTitle($screenstepslivePages['space'], $screenstepslivePages['bucket']);
 		} else
 		{
 			// Default page is a bucket. Nothing to do.
@@ -316,6 +438,7 @@ function screenstepslive_parseTitle($the_title) {
 // Called by WordPress to process content
 function screenstepslive_parseContent($the_content)
 {	
+	global $screenstepslivePages;
 	$postID = get_the_ID();
 	$post = &get_post($postID);
 
@@ -338,12 +461,23 @@ function screenstepslive_parseContent($the_content)
 		// Get out if we have nothing to offer.
 		if (!isset($page)) return false;
 		
+		//print_r($pages);
+		
 		// Include necessary SS Live files
 		$sslivewp = screenstepslive_initializeObject();
 		
-		$space_id = $page['space_id'];
-		$manual_id = $sslivewp->CleanseID($_GET['manual_id']);
-		$bucket_id = $sslivewp->CleanseID($_GET['bucket_id']);
+		if (empty($screenstepslivePages)) {
+			$space_id = empty($page['space_permalink']) ? $page['space_id'] : $page['space_permalink'];
+			$manual_id = $sslivewp->CleanseID($_GET['manual_id']);
+			$bucket_id = $sslivewp->CleanseID($_GET['bucket_id']);
+			$lesson_id = $sslivewp->CleanseID($_GET['lesson_id']);
+		} else {
+			$space_id = $screenstepslivePages['space'];
+			$manual_id = $screenstepslivePages['manual'];
+			$bucket_id = $screenstepslivePages['bucket'];
+			$lesson_id = $screenstepslivePages['lesson'];
+		}
+		
 		if ($page['resource_type'] == 'bucket' && 
 			( (is_string($page['resource_id']) && !empty($page['resource_id'])) || (is_int($page['resource_id']) && $page['resource_id'] > 0) )
 			)
@@ -353,7 +487,9 @@ function screenstepslive_parseContent($the_content)
 			( (is_string($page['resource_id']) && !empty($page['resource_id'])) || (is_int($page['resource_id']) && $page['resource_id'] > 0) )
 			)
 			$manual_id = $page['resource_id'];
-		$lesson_id = $sslivewp->CleanseID($_GET['lesson_id']);
+		
+		////////////////////////
+		////////////////////////
 
 		if (empty($space_id))
 		{
@@ -389,7 +525,7 @@ function screenstepslive_parseContent($the_content)
 					$text .= '<div class="alignright">' . $next_link . '</div>' . "\n";
 				$text .= '<div class="screenstepslive_nav_bottom"></div>';
 				$text .= '</div>';
-				
+			
 				$text .= $sslivewp->GetLessonHTML($space_id, 'manual', $manual_id, $lesson_id);
 				
 				$text .= '<div class="screenstepslive_navigation">' . "\n";
@@ -403,6 +539,8 @@ function screenstepslive_parseContent($the_content)
 			} else if (!empty($bucket_id)) {
 	
 				$text = $sslivewp->GetLessonHTML($space_id, 'bucket', $bucket_id, $lesson_id);
+				// Example of getting PDF link
+				// $text .= '<a href="' . $sslivewp->GetManualLessonPDFURL($space_id, $manual_id, $lesson_id) . '">PDF Link</a>';
 			}
 			
 			$text .= $sslivewp->GetLessonComments($post->ID, $space_id, $resource_type, $resource_id, $lesson_id);
@@ -438,13 +576,16 @@ function screenstepslive_utf8_substr($str,$start)
 
 function screenstepslive_checkIfDeletedPostIsReferenced($postID) {
 	$pages = get_option('screenstepslive_pages');
-	foreach ($pages as $i => $value) {
-		if ($pages[$i]['id'] == $postID) {
-			unset($pages[$i]);
+	if (is_array($pages))
+	{
+		foreach ($pages as $i => $value) {
+			if ($pages[$i]['id'] == $postID) {
+				unset($pages[$i]);
+			}
 		}
+		update_option('screenstepslive_pages', $pages); // array_values reindexes
+		//update_option('screenstepslive_pages', array_values($pages)); // array_values reindexes
 	}
-	
-	update_option('screenstepslive_pages', array_values($pages)); // array_values reindexes
 }
 
 
@@ -493,10 +634,15 @@ function screenstepslive_optionPage()
 		$form_submitted = true;
 	}
 	
-	// Manuals form was subbmited
-	if ($_POST['pages_submitted'] == 1&& is_array($_POST['pages'])) {		
+	// Get list of spaces from SS Live
+	$spaces = $sslivewp->GetSpaces();
+	
+	// Manuals form was submited
+	if ($_POST['pages_submitted'] == 1 && is_array($_POST['pages'])) {		
 		// Loop through posted pages, making sure they still exist. User could have deleted one.		
 		$pages = get_option('screenstepslive_pages');
+
+		//print_r($_POST['pages']);
 
 		foreach ($_POST['pages'] as $page_id => $new_page) {
 			if (isset($pages[$page_id])) {
@@ -507,9 +653,18 @@ function screenstepslive_optionPage()
 				}
 				$pages[$page_id]['space_id'] = $new_page['space_id'];
 				$pages[$page_id]['resource_type'] = 'manual';
+				
+				// Find permalink
+				foreach($spaces['space'] as $space) {
+					if ($pages[$page_id]['space_id'] == $space['id']) {
+						$pages[$page_id]['space_permalink'] = $space['permalink'];
+						break;
+					}
+				}
 			}
 		}
-			
+		
+		// print_r($pages);
 		update_option('screenstepslive_pages', $pages);
 		$form_submitted = true;
 	}
@@ -520,19 +675,25 @@ function screenstepslive_optionPage()
 			case 'create_page':
 				$postID = screenstepslive_createTemplatePage();
 				if (intval($postID) > 0) {
-					$spaces = $sslivewp->GetSpaces();
+					$post = &get_post($postID);
 					
 					$pages = get_option('screenstepslive_pages');
 					$pages[$postID]['id'] = $postID;
 					$pages[$postID]['space_id'] = $spaces['space'][0]['id'];
+					$pages[$postID]['space_permalink'] = $spaces['space'][0]['permalink'];
 					$pages[$postID]['resource_type'] = 'manual';
 					$pages[$postID]['resource_id'] = 0;
+					$pages[$postID]['permalink'] = $post->post_name; // this is empty
 					
 					update_option('screenstepslive_pages', $pages);
 				}
 				break;
 		}
 	}
+	
+	// FOR TESTING
+	//$pages = get_option('screenstepslive_pages');
+	//print_r($pages);
 	
 	// UI	
 echo <<<END
@@ -584,7 +745,7 @@ echo <<<END
 			<legend>WordPress Page Settings</legend>
 END;
 			
-			if (!isset($spaces)) $spaces = $sslivewp->GetSpaces();
+			//print_r($spaces);
 			if ($spaces) {
 				if (count($spaces['space']) == 0) {
 					print "<div>No spaces were returned from the ScreenSteps Live server.</div>";

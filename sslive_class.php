@@ -1,6 +1,6 @@
 <?php
 
-// Version 1.0.2
+// Version 1.0.3
 
 // You need to get this from PEAR
 // http://pear.php.net/package/Crypt_HMAC
@@ -152,6 +152,27 @@ class SSLiveAPI {
 	}
 	
 	
+	function GetManualLessonPDFURL($space_id, $manual_id, $lesson_id) {
+		// Example URL: http://example.screensteps.com/spaces/ID/manuals/ID/lessons/ID/pdf
+		$data = '';
+	
+		/*
+		<?xml version="1.0" encoding="UTF-8"?>	<url>http://s3.amazonaws.com/screensteps_dev/step_images/bmls/2380/Creating_a_Lesson.pdf?AWSAccessKeyId=19JMR1FABXNXQR79AGG2&amp;Expires=1254933484&amp;Signature=raqKFFhbp02cQd2kd8RQo0v51g4%3D</url>
+		*/
+		
+		$lesson_id = intval($lesson_id);
+		$this->last_error = $this->requestURLData($this->getCompleteURL('/spaces/' . $space_id . '/manuals/'. $manual_id . '/lessons/' . $lesson_id . '/pdf'), $data);
+		if ($this->last_error == '') {
+			if ($this->use_simplexml)
+				return simplexml_load_string($data);
+			else
+				return $this->XMLToArray($data, 'url');
+		} else {
+			return NULL;
+		}
+	}
+	
+	
 	function GetBucketLesson($space_id, $bucket_id, $lesson_id) {
 		// Example URL: http://example.screensteps.com/spaces/ID/buckets/ID/lessons/ID
 		$data = '';
@@ -163,6 +184,22 @@ class SSLiveAPI {
 				return simplexml_load_string($data);
 			else
 				return $this->XMLToArray($data, 'lesson');
+		} else {
+			return NULL;
+		}
+	}
+	
+	function GetBucketLessonPDFURL($space_id, $bucket_id, $lesson_id) {
+		// Example URL: http://example.screensteps.com/spaces/ID/buckets/ID/lessons/ID/pdf
+		$data = '';
+		
+		$lesson_id = intval($lesson_id);
+		$this->last_error = $this->requestURLData($this->getCompleteURL('/spaces/' . $space_id . '/buckets/'. $bucket_id . '/lessons/' . $lesson_id . '/pdf'), $data);
+		if ($this->last_error == '') {
+			if ($this->use_simplexml)
+				return simplexml_load_string($data);
+			else
+				return $this->XMLToArray($data, 'url');
 		} else {
 			return NULL;
 		}
@@ -367,6 +404,9 @@ class SSLiveAPI {
 				case 'lesson':
 					$array = $this->xml_node_arrays[0]['lesson'];
 					break;
+				case 'url':
+					$array = $this->xml_node_arrays[0]['url'];
+					break;
 			}
 		}
 		
@@ -396,8 +436,8 @@ class SSLiveAPI {
 			$storeAsArrayIndex = TRUE;
 			
 			// Determine which nodes are stored as indexes and which are stored as simple keyed arrays.
-			//print '$this->xml_doc_type: ' . $this->xml_doc_type . "\n";
-			//print '$parentTagName: ' . $parentTagName . "\n";
+			// print '$this->xml_doc_type: ' . $this->xml_doc_type . "\n";
+			// print '$parentTagName: ' . $parentTagName . "\n";
 			switch ($this->xml_doc_type) {
 				case 'spaces':
 					switch ($parentTagName) {
@@ -451,6 +491,7 @@ class SSLiveAPI {
 						case 'lesson':
 						case 'manual':
 						case 'bucket':
+						case 'chapter':
 						case 'space':
 						case 'steps':
 						case 'comments':

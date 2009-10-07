@@ -1,6 +1,6 @@
 <?php
 
-// Version 1.0.3
+// Version 1.0.4
 
 // Include ScreenSteps Live class file
 require_once(dirname(__FILE__) . '/sslive_class.php');
@@ -54,30 +54,51 @@ class SSLiveWordPress extends SSLiveAPI {
 	
 	function GetLinkToSpace($post_id, $space_id) {
 		$link_to_space = $this->GetLinkToWordPressPage($post_id);
-		return $link_to_space . 'space_id=' . $space_id;
+		if (!strstr($link_to_lesson, '?'))
+			return $link_to_space . $space_id;
+		else
+			return $link_to_space . 'space_id=' . $space_id;
 	}	
 	
 	function GetLinkToManual($post_id, $space_id, $manual_id) {
 		$link_to_manual = $this->GetLinkToWordPressPage($post_id);
-		return $link_to_manual . 'space_id=' . $space_id . '&manual_id=' . $manual_id;
+		if (!strstr($link_to_lesson, '?'))
+			return $link_to_manual . $space_id . '/manual/' . $manual_id;		
+		else
+			return $link_to_manual . 'space_id=' . $space_id . '&manual_id=' . $manual_id;
 	}
 	
 	
-	function GetLinkToManualLesson($post_id, $space_id, $manual_id, $lesson_id) {
+	function GetLinkToManualLesson($post_id, $space_id, $manual_id, $lesson_id, $lesson_title='') {
+		if (!empty($lesson_title)) {
+			$lesson_title = '-' . sanitize_title($lesson_title);
+		}
 		$link_to_lesson = $this->GetLinkToWordPressPage($post_id);
-		return $link_to_lesson . 'space_id=' . $space_id . '&manual_id=' . $manual_id . '&lesson_id=' . $lesson_id;
+		if (!strstr($link_to_lesson, '?'))
+			return $link_to_lesson . $space_id . '/manual/' . $manual_id . '/' . $lesson_id . $lesson_title;
+		else
+			return $link_to_lesson . 'space_id=' . $space_id . '&manual_id=' . $manual_id . '&lesson_id=' . $lesson_id . $lesson_title;
 	}
 	
 	
-	function GetLinkToBucketLesson($post_id, $space_id, $bucket_id, $lesson_id) {
+	function GetLinkToBucketLesson($post_id, $space_id, $bucket_id, $lesson_id, $lesson_title='') {
+	if (!empty($lesson_title)) {
+			$lesson_title = '-' . sanitize_title($lesson_title);
+		}
 		$link_to_lesson = $this->GetLinkToWordPressPage($post_id);
-		return $link_to_lesson . 'space_id=' . $space_id . '&bucket_id=' . $bucket_id . '&lesson_id=' . $lesson_id;
+		if (!strstr($link_to_lesson, '?'))
+			return $link_to_lesson . $space_id . '/bucket/' . $bucket_id . '/' . $lesson_id;
+		else
+			return $link_to_lesson . 'space_id=' . $space_id . '&bucket_id=' . $bucket_id . '&lesson_id=' . $lesson_id . $lesson_title;
 	}
 	
 	
 	function GetLinkToBucket($post_id, $space_id, $bucket_id) {
 		$link_to_bucket = $this->GetLinkToWordPressPage($post_id);
-		return $link_to_bucket . 'space_id=' . $space_id . '&bucket_id=' . $bucket_id;
+		if (!strstr($link_to_lesson, '?'))
+			return $link_to_bucket . $space_id . '/bucket/' . $bucket_id;
+		else
+			return $link_to_bucket . 'space_id=' . $space_id . '&bucket_id=' . $bucket_id;
 	}
 	
 	
@@ -152,10 +173,11 @@ class SSLiveWordPress extends SSLiveAPI {
 		if ($type == 'manual') {
 			$this->CacheManualLesson($space_id, $manual_id, $lesson_id);
 		
-			if ($this->arrays['lesson']) {		
+			if ($this->arrays['lesson']) {
 				$prevLessonID = intval($this->arrays['lesson']['manual']['previous_lesson']['id']);
 				if ($prevLessonID > 0) {
-					$link_to_lesson = $this->GetLinkToManualLesson($post_id, $space_id, $manual_id, $prevLessonID);
+					$link_to_lesson = $this->GetLinkToManualLesson($post_id, $space_id, $manual_id, $prevLessonID, 
+						$this->arrays['lesson']['manual']['previous_lesson']['title']);
 					$link .= ('<a href="' . $link_to_lesson . '">' . $text . "</a>");
 				}
 			}
@@ -189,7 +211,8 @@ class SSLiveWordPress extends SSLiveAPI {
 			if ($this->arrays['lesson']) {
 				$nextLessonID = intval($this->arrays['lesson']['manual']['next_lesson']['id']);
 				if ($nextLessonID > 0) {
-					$link_to_lesson = $this->GetLinkToManualLesson($post_id, $space_id, $type_id, $nextLessonID);
+					$link_to_lesson = $this->GetLinkToManualLesson($post_id, $space_id, $type_id, $nextLessonID, 
+						$this->arrays['lesson']['manual']['next_lesson']['title']);
 					$link .= ('<a href="' . $link_to_lesson . '">' . $text . "</a>");
 				}
 			}
@@ -330,7 +353,7 @@ class SSLiveWordPress extends SSLiveAPI {
 							$text .= ("<ul class=\"screenstepslive_asset\">\n");
 							foreach ($chapter['lessons']['lesson'] as $key => $lesson) {
 								$lessonID = intval($lesson['id']);
-								$link_to_lesson = $this->GetLinkToManualLesson($post_id, $space_id, $manual_id, $lessonID);
+								$link_to_lesson = $this->GetLinkToManualLesson($post_id, $space_id, $manual_id, $lessonID, $lesson['title']);
 								
 								$text .= ('<li class="screenstepslive_asset screenstepslive_manual"><a href="' . $link_to_lesson . '">' . $lesson['title'] . "</a></li>\n");
 							}
@@ -364,7 +387,7 @@ class SSLiveWordPress extends SSLiveAPI {
 					$text .= ("<ul class=\"screenstepslive_asset\">\n");
 					foreach ($array['lessons']['lesson'] as $key => $lesson) {						
 						$lessonID = intval($lesson['id']);
-						$link_to_lesson = $this->GetLinkToBucketLesson($post_id, $space_id, $bucket_id, $lessonID);
+						$link_to_lesson = $this->GetLinkToBucketLesson($post_id, $space_id, $bucket_id, $lessonID, $lesson['title']);
 						
 						$text .= ('<li class="screenstepslive_asset screenstepslive_bucket"><a href="' . $link_to_lesson . '">' . $lesson['title'] . "</a></li>\n");
 					}
@@ -457,7 +480,7 @@ class SSLiveWordPress extends SSLiveAPI {
 			}
 			
 			$array =& $this->arrays['lesson'];
-						
+									
 			if ($array) {					
 				// Lesson Comments
 				// Use WordPress ids and layout
@@ -492,8 +515,8 @@ class SSLiveWordPress extends SSLiveAPI {
 				// Allow comments?
 				if (strtolower($array['allow_comments']) == 'true') {
 					$type_key = ($type == 'manual') ? 'manual_id' : 'bucket_id';
-					if ($type == 'manual') $formurl = $this->GetLinkToManualLesson($post_id, $space_id, $type_id, $lesson_id);
-					else $formurl = $this->GetLinkToBucketLesson($post_id, $space_id, $type_id, $lesson_id);
+					if ($type == 'manual') $formurl = $this->GetLinkToManualLesson($post_id, $space_id, $type_id, $lesson_id, $array['title']);
+					else $formurl = $this->GetLinkToBucketLesson($post_id, $space_id, $type_id, $lesson_id, $array['title']);
 $text .= <<<eof
 	<h3 id="respond">Add Your Comment</h3>
 	<form action="$formurl" id="commentform" method="post">
@@ -565,10 +588,11 @@ eof;
 		$link = get_permalink($page_id);
 		if ($prepareForQuery) {
 			$urlParts = parse_url($link);
-			if ($urlParts['query'] == '')
-				$link .= '?';
-			else
+			if ($urlParts['query'] != '')
 				$link .= '&';
+			// Now we support urls rather than query params
+			// else
+				//$link .= '?';
 		}
 		return $link;
 	}
