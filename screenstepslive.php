@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 1.0.7
+Version: 1.0.8
 Author: Blue Mango Learning Systems
 Author URI: http://www.screensteps.com
 */
@@ -342,10 +342,11 @@ function screenstepslive_listPages($the_output) {
 	if (empty($the_title) || $the_title == $post->post_title) {
 		return ($the_output);
 	} else {
-		// Now rename the page in the list to the original post title
-		$theNewOutput = preg_replace('/>' . preg_quote($the_title, "/") . '\</', '>' . $post->post_title . '<', $the_output, -1, $count);
-		if ($count > 0) return $theNewOutput;
-		else return ($the_output);
+		// Now rename the page in the list to the original post title		
+		if ( preg_match( '/>' . preg_quote($the_title, "/") . '\</', $the_output, $matches, PREG_OFFSET_CAPTURE) ) {
+			$the_output = substr_replace( $the_output, '>' . $post->post_title . '<', $matches[0][1], strlen($matches[0][0]) );
+		}
+		return ($the_output);
 	}
 }
 
@@ -568,7 +569,14 @@ function screenstepslive_parseContent($the_content)
 		}
 	}
 	
-	if ($text != '') $the_content = preg_replace('/{{SCREENSTEPSLIVE_CONTENT}}/i', $text, $the_content);
+	if ($text != '') {
+		// case insensitive search/replace in PHP 5. preg_replace breaks if
+		// $1 or \\1 is in the string. This is the happy compromise.
+		if ( preg_match( '/{{SCREENSTEPSLIVE_CONTENT}}/i', $the_content, $matches, PREG_OFFSET_CAPTURE) ) {
+			$the_content = substr_replace( $the_content, $text, $matches[0][1], strlen($matches[0][0]) );
+		}
+		//$the_content = preg_replace('/{{SCREENSTEPSLIVE_CONTENT}}/i', $text, $the_content);
+	}
 	
     return $the_content;
 }
