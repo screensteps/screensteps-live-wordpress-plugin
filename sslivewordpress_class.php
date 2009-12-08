@@ -1,6 +1,6 @@
 <?php
 
-// Version 1.0.4
+// Version 1.0.5
 
 // Include ScreenSteps Live class file
 require_once(dirname(__FILE__) . '/sslive_class.php');
@@ -54,18 +54,26 @@ class SSLiveWordPress extends SSLiveAPI {
 	
 	function GetLinkToSpace($post_id, $space_id) {
 		$link_to_space = $this->GetLinkToWordPressPage($post_id);
-		if (!strstr($link_to_lesson, '?'))
+		if (!strstr($link_to_space, '?')) {
 			return $link_to_space . $space_id;
-		else
-			return $link_to_space . 'space_id=' . $space_id;
+		} else {
+			if (strtolower($_GET['preview']) == 'true')
+				return $link_to_space . 'preview=true&space_id=' . $space_id;
+			else
+				return $link_to_space . 'space_id=' . $space_id;
+		}
 	}	
 	
 	function GetLinkToManual($post_id, $space_id, $manual_id) {
 		$link_to_manual = $this->GetLinkToWordPressPage($post_id);
-		if (!strstr($link_to_lesson, '?'))
+		if (!strstr($link_to_manual, '?'))
 			return $link_to_manual . $space_id . '/manual/' . $manual_id;		
-		else
-			return $link_to_manual . 'space_id=' . $space_id . '&manual_id=' . $manual_id;
+		else {
+			if (strtolower($_GET['preview']) == 'true')
+				return $link_to_manual . 'preview=true&space_id=' . $space_id . '&manual_id=' . $manual_id;
+			else
+				return $link_to_manual . 'space_id=' . $space_id . '&manual_id=' . $manual_id;
+		}
 	}
 	
 	
@@ -76,8 +84,12 @@ class SSLiveWordPress extends SSLiveAPI {
 		$link_to_lesson = $this->GetLinkToWordPressPage($post_id);
 		if (!strstr($link_to_lesson, '?'))
 			return $link_to_lesson . $space_id . '/manual/' . $manual_id . '/' . $lesson_id . $lesson_title;
-		else
-			return $link_to_lesson . 'space_id=' . $space_id . '&manual_id=' . $manual_id . '&lesson_id=' . $lesson_id . $lesson_title;
+		else {
+			if (strtolower($_GET['preview']) == 'true')
+				return $link_to_lesson . 'preview=true&space_id=' . $space_id . '&manual_id=' . $manual_id . '&lesson_id=' . $lesson_id . $lesson_title;
+			else
+				return $link_to_lesson . 'space_id=' . $space_id . '&manual_id=' . $manual_id . '&lesson_id=' . $lesson_id . $lesson_title;
+		}
 	}
 	
 	
@@ -88,17 +100,25 @@ class SSLiveWordPress extends SSLiveAPI {
 		$link_to_lesson = $this->GetLinkToWordPressPage($post_id);
 		if (!strstr($link_to_lesson, '?'))
 			return $link_to_lesson . $space_id . '/bucket/' . $bucket_id . '/' . $lesson_id;
-		else
-			return $link_to_lesson . 'space_id=' . $space_id . '&bucket_id=' . $bucket_id . '&lesson_id=' . $lesson_id . $lesson_title;
+		else {
+			if (strtolower($_GET['preview']) == 'true')
+				return $link_to_lesson . 'preview=true&space_id=' . $space_id . '&bucket_id=' . $bucket_id . '&lesson_id=' . $lesson_id . $lesson_title;
+			else
+				return $link_to_lesson . 'space_id=' . $space_id . '&bucket_id=' . $bucket_id . '&lesson_id=' . $lesson_id . $lesson_title;
+		}
 	}
 	
 	
 	function GetLinkToBucket($post_id, $space_id, $bucket_id) {
 		$link_to_bucket = $this->GetLinkToWordPressPage($post_id);
-		if (!strstr($link_to_lesson, '?'))
+		if (!strstr($link_to_bucket, '?'))
 			return $link_to_bucket . $space_id . '/bucket/' . $bucket_id;
-		else
-			return $link_to_bucket . 'space_id=' . $space_id . '&bucket_id=' . $bucket_id;
+		else {
+			if (strtolower($_GET['preview']) == 'true')
+				return $link_to_bucket . 'preview=true&space_id=' . $space_id . '&bucket_id=' . $bucket_id;
+			else
+				return $link_to_bucket . 'space_id=' . $space_id . '&bucket_id=' . $bucket_id;
+		}
 	}
 	
 	
@@ -287,7 +307,7 @@ class SSLiveWordPress extends SSLiveAPI {
 			$array =& $this->arrays['space'];
 
 			if ($array) {
-				if (count($array['assets']['asset']) == 0) {
+				if (!is_array($array['assets']['asset']) || count($array['assets']['asset']) == 0) {
 					$text .= "<p>Space has no assets.</p>";
 				} else {
 					if ( strtolower($array['assets']['asset'][0]['type']) == 'divider' ) $ulState = NULL;
@@ -312,11 +332,12 @@ class SSLiveWordPress extends SSLiveAPI {
 							
 							$ulState = NULL;
 						}
-						else if (strtolower($asset['type']) == 'bucket')
+						// We don't support display of buckets yet.
+						/*else if (strtolower($asset['type']) == 'bucket')
 						{
 							$link_to_page = $this->GetLinkToBucket($post_id, $space_id, $asset['id']);
 							$text .= ('<li class="screenstepslive_asset screenstepslive_bucket"><a href="' . $link_to_page . '">' . $asset['title'] . "</a></li>\n");
-						}							
+						}*/							
 					}
 					
 					if ($ulState == 'open') {
@@ -341,11 +362,17 @@ class SSLiveWordPress extends SSLiveAPI {
 		if ($this->UserCanViewSpace($this->spaces_settings[$space_id])) {
 			$this->CacheManual($space_id, $manual_id);
 			$array =& $this->arrays['manual'];
-		
+
 			if ($array) {
-				if (count($array['chapters']['chapter']) == 0) {
+				if (!is_array($array['chapters']['chapter']) || count($array['chapters']['chapter']) == 0) {
 					$text .= "<p>Manual has no chapters.</p>";
-				} else {					
+				} else {
+					// PDF Link
+					$pdfLink = $this->GetManualPDFURL($space_id, $manual_id);
+					if (!empty($pdfLink)) {
+						$text .= '<p><a href="' . $pdfLink . '">Download Manual PDF</a></p>';
+					}
+				
 					foreach ($array['chapters']['chapter'] as $key => $chapter) {
 						$text .= ('<h3>' . $chapter['title'] . '</h3>');
 						
@@ -381,7 +408,7 @@ class SSLiveWordPress extends SSLiveAPI {
 			$array =& $this->arrays['bucket'];
 			//print_r($array);
 			if ($array) {
-				if (count($array['lessons']['lesson']) == 0) {
+				if (!is_array($array['lessons']['lesson']) || count($array['lessons']['lesson']) == 0) {
 					$text .= "<p>Bucket has no lessons.</p>";
 				} else {
 					$text .= ("<ul class=\"screenstepslive_asset\">\n");
@@ -420,13 +447,22 @@ class SSLiveWordPress extends SSLiveAPI {
 			$array =& $this->arrays['lesson'];
 						
 			if ($array) {
+				// Description
 				if ($array['description'] != '' && $array['description'] != '<p></p>') {
 					$text .= ('<p>' . $array['description'] . "</p>\n");
 				}
 				
-				if (count($array['steps']['step']) == 0)
+				// PDF Link
+				$pdfLink = $this->GetManualLessonPDFURL($space_id, $type_id, $lesson_id);
+				if (!empty($pdfLink)) {
+					$text .= '<p><a href="' . $pdfLink . '">Download Lesson PDF</a></p>';
+				}
+				
+				// Steps
+				if (!is_array($array['steps']['step']) || count($array['steps']['step']) == 0)
 				{
-					$text .= ("<p>Lesson has no steps.</p>\n");
+					// For debugging.
+					// $text .= ("<p>Lesson has no steps.</p>\n");
 				} else {
 					if ($array['steps']['step']) {
 						foreach ($array['steps']['step'] as $key => $step) {

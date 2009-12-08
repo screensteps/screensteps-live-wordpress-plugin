@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 1.0.8
+Version: 1.1
 Author: Blue Mango Learning Systems
 Author URI: http://www.screensteps.com
 */
@@ -395,19 +395,23 @@ function screenstepslive_parseTitle($the_title) {
 		// nothing to do	
 	}  else if (!empty($screenstepslivePages['space']) && !empty($screenstepslivePages['lesson'])) {
 		if (!empty($screenstepslivePages['manual'])) {
-			if ($page['resource_id'] == 0)
+			if (is_numeric($page['resource_id']) && $page['resource_id'] == 0)
 			{
 				// Default page is a space.
-				$the_title = '<a href="' . $sslivewp->GetLinkToManual($post->ID, $screenstepslivePages['space'], $screenstepslivePages['manual']) . '">' . 
-								$sslivewp->GetManualTitle($screenstepslivePages['space'], $screenstepslivePages['manual']) . '</a>: ' .
+				$the_title = '<a href="' . $sslivewp->GetLinkToSpace($post->ID, $screenstepslivePages['space']) . '">' . 
+							$the_title . '</a>: ' .
+							'<a href="' . $sslivewp->GetLinkToManual($post->ID, $screenstepslivePages['space'], $screenstepslivePages['manual']) . '">' . 
+							$sslivewp->GetManualTitle($screenstepslivePages['space'], $screenstepslivePages['manual']) . '</a>: ' .
 							$sslivewp->GetManualLessonTitle($screenstepslivePages['space'], $screenstepslivePages['manual'], $screenstepslivePages['lesson']);		
 			} else
 			{
 				// Default page is a manual.
-				$the_title = $sslivewp->GetManualLessonTitle($screenstepslivePages['space'], $screenstepslivePages['manual'], $screenstepslivePages['lesson']);		
+				$the_title = '<a href="' . $sslivewp->GetLinkToManual($post->ID, $screenstepslivePages['space'], $screenstepslivePages['manual']) . '">' . 
+							$the_title . '</a>: ' .
+							$sslivewp->GetManualLessonTitle($screenstepslivePages['space'], $screenstepslivePages['manual'], $screenstepslivePages['lesson']);		
 			}
 		} else if (!empty($screenstepslivePages['bucket'])) {
-			if ($page['resource_id'] == 0)
+			if (is_numeric($page['resource_id']) && $page['resource_id'] == 0)
 			{
 				// Default page is a space.
 				$the_title = '<a href="' . $sslivewp->GetLinkToBucket($post->ID, $screenstepslivePages['space'], $screenstepslivePages['bucket']) . '">' . 
@@ -421,17 +425,19 @@ function screenstepslive_parseTitle($the_title) {
 		}
 			
 	} else if (!empty($screenstepslivePages['space']) && !empty($screenstepslivePages['manual'])) {
-		if ($page['resource_id'] == 0)
+		if (is_numeric($page['resource_id']) && $page['resource_id'] == 0)
 		{
 			// Default page is a space. Get manual title.
-			$the_title = $sslivewp->GetManualTitle($screenstepslivePages['space'], $screenstepslivePages['manual']);	
+			$the_title = '<a href="' . $sslivewp->GetLinkToSpace($post->ID, $screenstepslivePages['space']) . '">' . 
+						$the_title . '</a>: ' .
+						$sslivewp->GetManualTitle($screenstepslivePages['space'], $screenstepslivePages['manual']);	
 		} else
 		{
 			// Default page is a manual. Nothing to do.
 		}
 		
 	} else if (!empty($screenstepslivePages['space']) && !empty($screenstepslivePages['bucket'])) {
-		if ($page['resource_id'] == 0)
+		if (is_numeric($page['resource_id']) && $page['resource_id'] == 0)
 		{
 			// Default page is a space. Get bucket title.
 			$the_title = $sslivewp->GetBucketTitle($screenstepslivePages['space'], $screenstepslivePages['bucket']);
@@ -456,7 +462,7 @@ function screenstepslive_parseContent($the_content)
 	$post = &get_post($postID);
 
 	if (stristr($the_content, '{{SCREENSTEPSLIVE_CONTENT}}') !== FALSE) {
-		$text = '';
+		$text = NULL;
 		$the_content = str_ireplace('<p>', '', $the_content);
 		$the_content = str_ireplace('</p>', '', $the_content);
 		$the_content = '<div class="screenstepslive">' . "\n" . $the_content . '</div>';
@@ -474,7 +480,7 @@ function screenstepslive_parseContent($the_content)
 		// Get out if we have nothing to offer.
 		if (!isset($page)) return false;
 		
-		//print_r($pages);
+		//print_r($page);
 		
 		// Include necessary SS Live files
 		$sslivewp = screenstepslive_initializeObject();
@@ -531,7 +537,7 @@ function screenstepslive_parseContent($the_content)
 				$next_link = $sslivewp->GetLinkToNextLesson($post->ID, $space_id, 'manual', $manual_id, $lesson_id, $next_title . ' >'); // 'Next Lesson');
 				$prev_link = $sslivewp->GetLinkToPrevLesson($post->ID, $space_id, 'manual', $manual_id, $lesson_id, '< ' . $prev_title); //'Previous Lesson');
 				
-				$text .= '<div class="screenstepslive_navigation">' . "\n";
+				$text = '<div class="screenstepslive_navigation">' . "\n";
 				if ($prev_link != '') 
 					$text .= '<div class="alignleft">' . $prev_link . '</div>' . "\n";
 				if (!empty($next_link))
@@ -552,24 +558,24 @@ function screenstepslive_parseContent($the_content)
 			} else if (!empty($bucket_id)) {
 	
 				$text = $sslivewp->GetLessonHTML($space_id, 'bucket', $bucket_id, $lesson_id);
-				// Example of getting PDF link
-				// $text .= '<a href="' . $sslivewp->GetManualLessonPDFURL($space_id, $manual_id, $lesson_id) . '">PDF Link</a>';
 			}
 			
-			$text .= $sslivewp->GetLessonComments($post->ID, $space_id, $resource_type, $resource_id, $lesson_id);
+			if ($page['allow_comments']) {
+				$text .= $sslivewp->GetLessonComments($post->ID, $space_id, $resource_type, $resource_id, $lesson_id);
+			}
 			
 		} else if (!empty($space_id) && !empty($manual_id)) {
-			$text .= $sslivewp->GetManualList($post->ID, $space_id, $manual_id);
+			$text = $sslivewp->GetManualList($post->ID, $space_id, $manual_id);
 			
 		} else if (!empty($space_id) && !empty($bucket_id)) {
-			$text .= $sslivewp->GetBucketList($post->ID, $space_id, $bucket_id);
+			$text = $sslivewp->GetBucketList($post->ID, $space_id, $bucket_id);
 
 		} else {
 			$text = $sslivewp->GetSpaceList($post->ID, $space_id);
 		}
 	}
 	
-	if ($text != '') {
+	if (!is_null($text)) {
 		// case insensitive search/replace in PHP 5. preg_replace breaks if
 		// $1 or \\1 is in the string. This is the happy compromise.
 		if ( preg_match( '/{{SCREENSTEPSLIVE_CONTENT}}/i', $the_content, $matches, PREG_OFFSET_CAPTURE) ) {
@@ -663,6 +669,7 @@ function screenstepslive_optionPage()
 		$pages = get_option('screenstepslive_pages');
 
 		//print_r($_POST['pages']);
+		//print_r($pages);
 
 		foreach ($_POST['pages'] as $page_id => $new_page) {
 			if (isset($pages[$page_id])) {
@@ -673,6 +680,7 @@ function screenstepslive_optionPage()
 				}
 				$pages[$page_id]['space_id'] = $new_page['space_id'];
 				$pages[$page_id]['resource_type'] = 'manual';
+				$pages[$page_id]['allow_comments'] = ($new_page['allow_comments'] == 'on') ? 1 : 0;
 				
 				// Find permalink
 				foreach($spaces['space'] as $space) {
@@ -773,15 +781,73 @@ END;
 					// Print FORM and header
 					print ('<form method="post" action="' . GETENV('REQUEST_URI') . '">' . "\n");
 					print ('<input type="hidden" name="pages_submitted" value="1">' . "\n");
+					
+					if (is_array($spaces['space'])) 
+					{
+echo <<<END
+		<script>
+		<!--
+		var spaces = new Array();
+		
+END;
+						foreach ($spaces['space'] as $space)
+						{
+							$space_info = $sslivewp->GetSpace($space['id']);
+							
+							if (is_array($space_info['assets']))
+							{
+								foreach ($space_info['assets']['asset'] as $asset)
+								{
+									if (strtolower($asset['type']) == 'manual')
+									{
+										$a_spaceID = str_replace("'", "\'", $space['id']);
+										$a_assetTitle = str_replace("'", "\'", $asset['title']);
+										$a_assetID = str_replace("'", "\'", $asset['id']);
+echo <<<END
+		spaces.push(new Array('$a_spaceID', '$a_assetTitle', '$a_assetID'));
+		
+END;
+									}
+								}
+							}
+						}
+
+echo <<<END
+
+jQuery(document).ready(function($) {
+	jQuery('select.spaces').change(function() {
+	space_id = $(this).val();
+	page_id = $(this).attr("id").split("_")[1];
+	SetAssetFromSpace(space_id, page_id);
+	});
+});
+
+
+function SetAssetFromSpace(space_id, page_id) {
+	asset_list = jQuery("#assets_" + page_id);
+	options = '<option value="0">None</option>';
+	jQuery.each(spaces, function(i, space) {
+		if (space[0] == space_id) {
+			options += '<option value="' + space[2] + '">' + space[1] + '</option>';
+		}
+	});
+	jQuery(asset_list).html(options);
+}
+		-->
+		</script>
+END;
+					}
+
 					print ('<table class="optiontable form-table">');
 					print ('<tr>' . "\n");
 					print ('<th scope="column" style="width:10px;">Page ID</th>' . "\n");
 					print ('<th scope="column">Space</th>' . "\n");
 					print ('<th scope="column">Manual</th>' . "\n");
+					print ('<th scope="column">Allow Comments</th>' . "\n");
 					print ('</tr>' . "\n");
 					
 					$pages = get_option('screenstepslive_pages');
-					$manauls = array();
+					$manuals = array();
 					$buckets = array();
 					
 					if (is_array($pages) ) {
@@ -795,7 +861,7 @@ END;
 								
 								// Spaces select menu column
 								if (count($spaces['space']) > 0) {
-									print ('<td><select name="pages[' . $i . '][space_id]' . '">');
+									print ('<td><select name="pages[' . $i . '][space_id]' . '" class="spaces" id="space_' . $page['id'] . '">');
 									foreach ($spaces['space'] as $key => $space) {
 										// Determine initial state for visible checkbox and permission settings.
 										if ($space['id'] == $page['space_id']) {
@@ -825,7 +891,7 @@ END;
 									}
 	
 									if (count($manuals[ $page['space_id'] ]) > 0) {
-										print ('<td><select name="pages[' . $i . '][resource_id]' . '">');
+										print ('<td><select name="pages[' . $i . '][resource_id]' . '" class="assets" id="assets_' . $page['id'] . '">');
 											print ('<option value="0">None</option>');
 										foreach ($manuals[ $page['space_id'] ] as $manual) {
 											// Determine initial state for visible checkbox and permission settings.
@@ -845,12 +911,14 @@ END;
 									print ('<input type="hidden" name="pages[' . $i . '][resource_id]" value="0" />');
 									print ('<td>None</td>' . "\n");
 								}
-								
+					
+							$checked = ($page['allow_comments'] == 1) ? 'checked' : '';
+							print ('<td><input type="checkbox" name="pages[' . $i . '][allow_comments]" ' . $checked . '></td>' . "\n");
 							print ('</tr>' . "\n");
 						}
 					}
 					
-						print ('<tr><td colspan="3">');
+						print ('<tr><td colspan="4">');
 								print ('<p><a href="' . GETENV('REQUEST_URI') . '&ssliveaction=create_page">Create ScreenSteps Live Page</a></p>');
 						print ('</td></tr>');
 					

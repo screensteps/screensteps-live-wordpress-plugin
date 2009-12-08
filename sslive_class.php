@@ -1,6 +1,6 @@
 <?php
 
-// Version 1.0.3
+// Version 1.1
 
 // You need to get this from PEAR
 // http://pear.php.net/package/Crypt_HMAC
@@ -146,6 +146,26 @@ class SSLiveAPI {
 				return simplexml_load_string($data);
 			else
 				return $this->XMLToArray($data, 'lesson');
+		} else {
+			return NULL;
+		}
+	}
+	
+	
+	function GetManualPDFURL($space_id, $manual_id) {
+		// Example URL: http://example.screensteps.com/spaces/ID/manuals/ID/pdf
+		$data = '';
+	
+		/*
+		<?xml version="1.0" encoding="UTF-8"?>	<url>http://s3.amazonaws.com/screensteps_dev/step_images/bmls/2380/Creating_a_Lesson.pdf?AWSAccessKeyId=19JMR1FABXNXQR79AGG2&amp;Expires=1254933484&amp;Signature=raqKFFhbp02cQd2kd8RQo0v51g4%3D</url>
+		*/
+		
+		$this->last_error = $this->requestURLData($this->getCompleteURL('/spaces/' . $space_id . '/manuals/'. $manual_id . '/pdf'), $data);
+		if ($this->last_error == '') {
+			if ($this->use_simplexml)
+				return simplexml_load_string($data);
+			else
+				return $this->XMLToArray($data, 'url');
 		} else {
 			return NULL;
 		}
