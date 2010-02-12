@@ -1,6 +1,6 @@
 <?php
 
-// Version 1.0.5
+// Version 1.0.6
 
 // Include ScreenSteps Live class file
 require_once(dirname(__FILE__) . '/sslive_class.php');
@@ -622,6 +622,12 @@ eof;
 	
 	function GetLinkToWordPressPage($page_id, $prepareForQuery=true) {
 		$link = get_permalink($page_id);
+		
+		// Make sure there is a trailing slash
+		if (substr($link, -1) != '/') {
+			$link .= '/';
+		}
+		
 		if ($prepareForQuery) {
 			$urlParts = parse_url($link);
 			if ($urlParts['query'] != '')
