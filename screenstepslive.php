@@ -3,16 +3,17 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 1.1
+Version: 1.1.1
 Author: Blue Mango Learning Systems
 Author URI: http://www.screensteps.com
 */
 
-//$result = error_reporting(E_ERRORÊ|ÊE_WARNINGÊ|ÊE_PARSEÊ|ÊE_NOTICE);
+//$result = error_reporting(E_ERROR|E_WARNING|E_PARSE|E_NOTICE);
 
 // Global var for SSLiveWordPress object. It is shared among multiple wp callbacks.
 $screenstepslivewp = NULL;
 $screenstepslivePages = NULL;
+$screenstepsliveA = NULL;
 
 
 // This plugin processes content of all posts
@@ -20,6 +21,7 @@ add_action('wp_head', 'screenstepslive_addHeader', 100);
 add_filter('the_content', 'screenstepslive_parseContent', 100);
 add_filter('the_title', 'screenstepslive_parseTitle', 100);
 add_filter('wp_list_pages', 'screenstepslive_listPages', 100);
+add_filter('wp_list_pages_excludes', 'screenstepslive_listPagesExcludes', 100);
 add_filter('delete_post', 'screenstepslive_checkIfDeletedPostIsReferenced', 100);
 add_filter('name_save_pre', 'screenstepslive_changePagePermalink', 100);
 add_action('admin_menu', 'screenstepslive_addPages');
@@ -157,6 +159,8 @@ function screenstepslive_query_vars($request)
 	
 	$pages = get_option('screenstepslive_pages');
 	
+	//print_r($pages);
+	
 	// Update permalink for page
 	if (is_array($pages))
 	{
@@ -218,7 +222,7 @@ function screenstepslive_changePagePermalink($data)
 	// Find settings for this page
 	// Can't find way to determine if revision is being inserted other than this.
 	// ID doesn't seem to be available anywhere. Silly.
-	if ($pageID > 0 && $data != ($pageID . '-revision')) 
+	if ($pageID > 0 && $data != ($pageID . '-revision') && $data != ($pageID . '-autosave')) 
 	{
 		$pages = get_option('screenstepslive_pages');
 		
@@ -241,14 +245,26 @@ function screenstepslive_changePagePermalink($data)
 }
 
 
+function screenstepslive_listPagesExcludes($the_output) {
+	// Set flag that WP is listing pages
+	global $screenstepsliveA;
+	$screenstepsliveA['listing pages'] = true;
+	return ($the_output);
+}
+
+
 function screenstepslive_listPages($the_output) {
+	// unset flag that turns off title parsing
+	global $screenstepsliveA;
+	$screenstepsliveA['listing pages'] = false;
+
 	// We remove the link to the current SS Live page from the list. It's $title will be rewritten
 	// by screenstepslive_parseTitle and since WordPress has one filter for ALL titles we don't have
 	// a lot of options.
 	global $screenstepslivePages;
 	$postID = get_the_ID();
 	$post = &get_post($postID);
-			
+				
 	// Find settings for this page
 	$pages = get_option('screenstepslive_pages');
 	
@@ -338,7 +354,7 @@ function screenstepslive_listPages($the_output) {
 	} else {
 		// Spaces. Not used.
 	}
-		
+			
 	if (empty($the_title) || $the_title == $post->post_title) {
 		return ($the_output);
 	} else {
@@ -354,7 +370,13 @@ function screenstepslive_listPages($the_output) {
 function screenstepslive_parseTitle($the_title) {
 	if (!is_page( $the_title)) return ($the_title); // cursed wp_list_pages calls this as well.
 	
+	global $screenstepsliveA;
+	
+	// Get out if WP is listing pages
+	if ($screenstepsliveA['listing pages'] === true) return ($the_title);
+	
 	global $screenstepslivePages;
+	
 	$postID = get_the_ID();
 	$post = &get_post($postID);
 				
@@ -370,7 +392,7 @@ function screenstepslive_parseTitle($the_title) {
 		
 	// Get out if we have nothing to offer.
 	if (!isset($page)) return ($the_title);
-	
+		
 	// Include necessary SS Live files
 	$sslivewp = screenstepslive_initializeObject();
 	
