@@ -3,7 +3,7 @@
 Plugin Name: ScreenSteps Live
 Plugin URI: http://screensteps.com/blog/2008/07/screensteps-live-wordpress-plugin/
 Description: This plugin will incorporate lessons from your ScreenSteps Live account into your WordPress Pages.
-Version: 1.1.2
+Version: 1.1.3
 Author: Blue Mango Learning Systems
 Author URI: http://www.screensteps.com
 */
@@ -1008,7 +1008,8 @@ END;
 								}						
 								
 								// Manual select menu column
-								if ($page['space_id'] > 0) {
+								if ( ( is_int( $page['space_id'] ) && $page['space_id'] > 0) || 
+									( !is_int( $page['space_id'] ) && !empty( $page['space_id'] ) ) ) {
 									if (!isset($manuals[ $page['space_id'] ])) {
 										$space = $sslivewp->GetSpace($page['space_id']);
 										if (is_array($space['assets']['asset'])) {
