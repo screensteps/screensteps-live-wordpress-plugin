@@ -31,7 +31,7 @@ add_filter('name_save_pre', 'screenstepslive_changePagePermalink', 100);
 add_action('admin_menu', 'screenstepslive_addPages');
 
 add_filter('request', 'screenstepslive_query_vars', 100);
-add_filter('wp_title', 'screenstepslive_wp_title', 100, 2);
+add_filter('wp_title', 'screenstepslive_wp_title', 10, 2); // Get in on this early
 
 
 function screenstepslive_initializeObject()
